@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Family Meal Planner">
+  <rect width="512" height="512" rx="120" fill="#f2e6d8"/>
+  <path d="M160 164c0-28 23-52 52-52h88c29 0 52 24 52 52v168c0 38-30 68-68 68h-56c-38 0-68-30-68-68V164z" fill="#f59e0b"/>
+  <path d="M192 180c0-11 9-20 20-20h88c11 0 20 9 20 20v150c0 20-16 36-36 36h-56c-20 0-36-16-36-36V180z" fill="#fff3e0"/>
+  <path d="M140 196h40v32c0 36-28 64-64 64h-8v-32h8c14 0 24-10 24-24v-40z" fill="#e07a5f"/>
+  <path d="M372 196h40v40c0 14 10 24 24 24h8v32h-8c-36 0-64-28-64-64v-32z" fill="#3d405b"/>
+  <circle cx="256" cy="252" r="26" fill="#3d405b"/>
+</svg>

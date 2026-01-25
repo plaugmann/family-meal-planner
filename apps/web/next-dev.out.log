@@ -6,19 +6,109 @@
   - Local:        http://localhost:3000
 
  ✓ Starting...
- ✓ Ready in 3.2s
+ ✓ Ready in 4.1s
  ○ Compiling / ...
- ✓ Compiled / in 1167ms (433 modules)
- GET / 200 in 1286ms
- ✓ Compiled /api/recipes in 199ms (251 modules)
- GET /api/recipes 200 in 539ms
- GET /api/recipes 200 in 17ms
- ✓ Compiled /api/inventory in 56ms (253 modules)
- GET /api/inventory 200 in 99ms
- ✓ Compiled /api/whitelist in 57ms (255 modules)
- GET /api/whitelist 200 in 100ms
- ✓ Compiled /api/weekly-plan in 57ms (257 modules)
- GET /api/weekly-plan 200 in 95ms
- GET /api/recipes 200 in 13ms
- ✓ Compiled /api/recipes/[id] in 66ms (259 modules)
- GET /api/recipes/cmku3hr0a000mg3nn2sepi9cp 200 in 800ms
+ ✓ Compiled / in 1975ms (473 modules)
+ GET / 307 in 2110ms
+ ○ Compiling /this-week ...
+ ✓ Compiled /this-week in 2.9s (725 modules)
+ GET /this-week 200 in 2903ms
+ GET /this-week 200 in 158ms
+ ✓ Compiled /discover in 253ms (736 modules)
+ GET /discover 200 in 389ms
+ ✓ Compiled /recipes in 139ms (744 modules)
+ GET /recipes 200 in 211ms
+ ✓ Compiled /recipes/[id] in 188ms (756 modules)
+ GET /recipes/cmku3hr0a000mg3nn2sepi9cp 200 in 909ms
+ ✓ Compiled /shopping in 177ms (768 modules)
+ GET /shopping 200 in 240ms
+ ✓ Compiled /inventory in 158ms (778 modules)
+ GET /inventory 200 in 234ms
+ ✓ Compiled /settings/whitelist in 171ms (788 modules)
+ GET /settings/whitelist 200 in 264ms
+ ✓ Compiled /api/recipes in 137ms (435 modules)
+ GET /api/recipes 200 in 737ms
+ ✓ Compiled /api/weekly-plan in 96ms (437 modules)
+ GET /api/weekly-plan 200 in 143ms
+ ✓ Compiled /api/shopping-list/generate in 101ms (439 modules)
+ GET /api/shopping-list/generate 405 in 131ms
+ HEAD / 307 in 203ms
+ GET / 307 in 78ms
+ GET /this-week 200 in 116ms
+ ✓ Compiled /api/recipes in 414ms (394 modules)
+ ✓ Compiled (426 modules)
+ GET /manifest.webmanifest 200 in 750ms
+ GET /api/recipes 200 in 765ms
+ GET /api/weekly-plan 200 in 773ms
+ GET /api/recipes 200 in 51ms
+ GET /api/weekly-plan 200 in 52ms
+ ✓ Compiled /discover in 442ms (436 modules)
+ GET /manifest.webmanifest 200 in 66ms
+ GET /api/recipes?familyFriendly=true 200 in 77ms
+ GET /api/weekly-plan 200 in 85ms
+ GET /api/recipes?familyFriendly=true 200 in 57ms
+ GET /api/weekly-plan 200 in 53ms
+ ✓ Compiled /recipes in 153ms (441 modules)
+ GET /api/recipes 200 in 42ms
+ GET /manifest.webmanifest 200 in 48ms
+ GET /api/weekly-plan 200 in 55ms
+ GET /api/recipes 200 in 35ms
+ GET /api/weekly-plan 200 in 42ms
+ ✓ Compiled /shopping in 286ms (451 modules)
+ GET /manifest.webmanifest 200 in 34ms
+ GET /api/weekly-plan 200 in 42ms
+ ✓ Compiled /api/shopping-list/generate in 149ms (453 modules)
+ GET /api/weekly-plan 200 in 372ms
+ POST /api/shopping-list/generate 200 in 57ms
+ POST /api/shopping-list/generate 200 in 592ms
+ ✓ Compiled /inventory in 213ms (459 modules)
+ ✓ Compiled /api/inventory in 286ms (461 modules)
+ GET /manifest.webmanifest 200 in 574ms
+ GET /api/inventory?location=FRIDGE&active=true 200 in 586ms
+ GET /api/inventory?location=FRIDGE&active=true 200 in 22ms
+ GET /api/inventory?location=PANTRY&active=true 200 in 27ms
+ GET /api/inventory?location=FRIDGE&active=true 200 in 79ms
+ ✓ Compiled /settings/whitelist in 251ms (467 modules)
+ ✓ Compiled /api/whitelist in 305ms (469 modules)
+ GET /manifest.webmanifest 200 in 651ms
+ GET /api/whitelist 200 in 684ms
+ GET /api/whitelist 200 in 30ms
+ GET /api/weekly-plan 200 in 101ms
+ GET /manifest.webmanifest 200 in 86ms
+ GET /api/recipes 200 in 111ms
+ GET /api/weekly-plan 200 in 155ms
+ GET /api/recipes 200 in 162ms
+ GET /api/recipes?familyFriendly=true 200 in 58ms
+ GET /manifest.webmanifest 200 in 59ms
+ GET /api/weekly-plan 200 in 66ms
+ GET /api/recipes?familyFriendly=true 200 in 35ms
+ GET /api/weekly-plan 200 in 34ms
+ GET /api/recipes 200 in 37ms
+ GET /manifest.webmanifest 200 in 40ms
+ GET /api/weekly-plan 200 in 57ms
+ GET /api/recipes 200 in 42ms
+ GET /api/weekly-plan 200 in 45ms
+ GET /manifest.webmanifest 200 in 29ms
+ GET /api/weekly-plan 200 in 34ms
+ GET /api/weekly-plan 200 in 35ms
+ POST /api/shopping-list/generate 200 in 50ms
+ POST /api/shopping-list/generate 200 in 39ms
+ GET /api/weekly-plan 200 in 28ms
+ GET /api/recipes 200 in 41ms
+ GET /api/weekly-plan 200 in 56ms
+ GET /manifest.webmanifest 200 in 54ms
+ GET /api/recipes 200 in 57ms
+ ✓ Compiled /recipes/[id] in 282ms (465 modules)
+ GET /api/weekly-plan 200 in 102ms
+ ✓ Compiled /api/recipes/[id] in 311ms (467 modules)
+ GET /api/recipes 200 in 665ms
+ GET /api/weekly-plan 200 in 1121ms
+ GET /api/recipes 200 in 593ms
+ GET /manifest.webmanifest 200 in 90ms
+ GET /api/recipes/cmku3hr06000eg3nnnrpf0d81 200 in 1954ms
+ GET /api/recipes/cmku3hr06000eg3nnnrpf0d81 200 in 413ms
+ GET /api/recipes 200 in 37ms
+ GET /api/weekly-plan 200 in 44ms
+ GET /manifest.webmanifest 200 in 40ms
+ GET /api/recipes 200 in 51ms
+ GET /api/weekly-plan 200 in 52ms

@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-sans: "Manrope", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --font-display: "Fraunces", "Georgia", "Times New Roman", serif;
+    --background: 40 33% 97%;
+    --foreground: 24 15% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 24 15% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 24 15% 12%;
+    --primary: 18 74% 44%;
+    --primary-foreground: 40 100% 97%;
+    --secondary: 30 36% 92%;
+    --secondary-foreground: 24 15% 18%;
+    --muted: 30 24% 92%;
+    --muted-foreground: 20 10% 45%;
+    --accent: 33 62% 88%;
+    --accent-foreground: 24 15% 16%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 24 20% 85%;
+    --input: 24 20% 85%;
+    --ring: 18 74% 44%;
+    --radius: 1rem;
+  }
+
+  .dark {
+    --background: 24 16% 10%;
+    --foreground: 40 20% 96%;
+    --card: 24 18% 12%;
+    --card-foreground: 40 20% 96%;
+    --popover: 24 18% 12%;
+    --popover-foreground: 40 20% 96%;
+    --primary: 28 82% 62%;
+    --primary-foreground: 24 16% 10%;
+    --secondary: 20 12% 18%;
+    --secondary-foreground: 40 20% 96%;
+    --muted: 20 12% 18%;
+    --muted-foreground: 30 10% 65%;
+    --accent: 18 22% 22%;
+    --accent-foreground: 40 20% 96%;
+    --destructive: 0 62% 40%;
+    --destructive-foreground: 40 20% 96%;
+    --border: 20 12% 22%;
+    --input: 20 12% 22%;
+    --ring: 28 82% 62%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+@layer utilities {
+  .safe-bottom {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 5rem);
+  }
+}
