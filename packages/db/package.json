@@ -1,0 +1,24 @@
+{
+  "name": "@family-meal-planner/db",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Prisma schema and database tooling for Family Meal Planner",
+  "scripts": {
+    "prisma:generate": "node ../../scripts/run-prisma.cjs generate",
+    "prisma:migrate": "node ../../scripts/run-prisma.cjs migrate dev",
+    "prisma:migrate:deploy": "node ../../scripts/run-prisma.cjs migrate deploy",
+    "prisma:seed": "node ../../scripts/run-prisma.cjs db seed"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.12.1"
+  },
+  "devDependencies": {
+    "prisma": "^5.12.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  }
+}

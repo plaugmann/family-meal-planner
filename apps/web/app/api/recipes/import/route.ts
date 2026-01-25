@@ -1,0 +1,72 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import {
+  extractDomain,
+  getOrCreateHousehold,
+  jsonError,
+  parseJson,
+  stubParseRecipe,
+} from "@/lib/api";
+
+export const runtime = "nodejs";
+
+export async function POST(request: Request) {
+  const payload = await parseJson<{ url?: string }>(request);
+  if (!payload?.url) {
+    return jsonError("VALIDATION_ERROR", "URL is required.", 400);
+  }
+
+  const domain = extractDomain(payload.url);
+  if (!domain) {
+    return jsonError("VALIDATION_ERROR", "URL is invalid.", 400);
+  }
+
+  const household = await getOrCreateHousehold();
+  const whitelist = await prisma.whitelistSite.findFirst({
+    where: { householdId: household.id, domain, isActive: true },
+  });
+
+  if (!whitelist) {
+    return jsonError("NOT_ALLOWED", "Domain is not whitelisted.", 403, { domain });
+  }
+
+  const parsed = stubParseRecipe(payload.url);
+
+  try {
+    const recipe = await prisma.recipe.create({
+      data: {
+        householdId: household.id,
+        title: parsed.title,
+        imageUrl: parsed.imageUrl,
+        sourceUrl: payload.url,
+        sourceDomain: domain,
+        servings: parsed.servings,
+        isFavorite: false,
+        isFamilyFriendly: household.familyFriendlyDefault,
+        needsReview: false,
+        ingredients: {
+          create: parsed.ingredients.map((line, index) => ({
+            position: index + 1,
+            line,
+          })),
+        },
+        steps: {
+          create: parsed.steps.map((text, index) => ({
+            position: index + 1,
+            text,
+          })),
+        },
+      },
+      include: { ingredients: true, steps: true },
+    });
+
+    const responseRecipe = {
+      ...recipe,
+      steps: recipe.steps.map((step) => step.text),
+    };
+
+    return NextResponse.json({ recipe: responseRecipe }, { status: 201 });
+  } catch (error) {
+    return jsonError("IMPORT_FAILED", "Recipe import failed.", 422, { url: payload.url });
+  }
+}

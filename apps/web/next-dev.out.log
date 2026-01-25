@@ -1,0 +1,24 @@
+
+> @family-meal-planner/web@0.1.0 dev
+> node ../../scripts/next-dev.cjs
+
+  ▲ Next.js 14.2.3
+  - Local:        http://localhost:3000
+
+ ✓ Starting...
+ ✓ Ready in 3.2s
+ ○ Compiling / ...
+ ✓ Compiled / in 1167ms (433 modules)
+ GET / 200 in 1286ms
+ ✓ Compiled /api/recipes in 199ms (251 modules)
+ GET /api/recipes 200 in 539ms
+ GET /api/recipes 200 in 17ms
+ ✓ Compiled /api/inventory in 56ms (253 modules)
+ GET /api/inventory 200 in 99ms
+ ✓ Compiled /api/whitelist in 57ms (255 modules)
+ GET /api/whitelist 200 in 100ms
+ ✓ Compiled /api/weekly-plan in 57ms (257 modules)
+ GET /api/weekly-plan 200 in 95ms
+ GET /api/recipes 200 in 13ms
+ ✓ Compiled /api/recipes/[id] in 66ms (259 modules)
+ GET /api/recipes/cmku3hr0a000mg3nn2sepi9cp 200 in 800ms
