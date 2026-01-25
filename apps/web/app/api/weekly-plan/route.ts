@@ -26,11 +26,13 @@ export async function PUT(request: Request) {
     return jsonError("VALIDATION_ERROR", "weekStart and items are required.", 400);
   }
 
-  if (payload.items.length !== 3) {
+  const items = payload.items;
+
+  if (items.length !== 3) {
     return jsonError("VALIDATION_ERROR", "Exactly 3 items are required.", 400);
   }
 
-  const uniqueRecipeIds = new Set(payload.items.map((item) => item.recipeId));
+  const uniqueRecipeIds = new Set(items.map((item) => item.recipeId));
   if (uniqueRecipeIds.size !== 3) {
     return jsonError("VALIDATION_ERROR", "Recipes must be unique.", 400);
   }
@@ -57,13 +59,13 @@ export async function PUT(request: Request) {
     });
 
     await tx.weeklyPlanItem.deleteMany({ where: { weeklyPlanId: plan.id } });
-    await tx.weeklyPlanItem.createMany({
-      data: payload.items.map((item) => ({
-        weeklyPlanId: plan.id,
-        recipeId: item.recipeId,
-        servings: item.servings ?? 4,
-      })),
-    });
+      await tx.weeklyPlanItem.createMany({
+        data: items.map((item) => ({
+          weeklyPlanId: plan.id,
+          recipeId: item.recipeId,
+          servings: item.servings ?? 4,
+        })),
+      });
 
     return tx.weeklyPlan.findUnique({
       where: { id: plan.id },

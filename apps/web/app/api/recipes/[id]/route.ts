@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import type { RecipeStep } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
 import { getOrCreateHousehold, jsonError, parseJson } from "@/lib/api";
 
@@ -17,7 +19,9 @@ export async function GET(_request: Request, { params }: { params: { id: string 
 
   const responseRecipe = {
     ...recipe,
-    steps: recipe.steps.map((step) => step.text),
+    steps: recipe.steps
+      .sort((a, b) => a.position - b.position)
+      .map((step: RecipeStep) => step.text),
   };
 
   return NextResponse.json({ recipe: responseRecipe });
@@ -90,7 +94,12 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   });
 
   const responseRecipe = updated
-    ? { ...updated, steps: updated.steps.map((step) => step.text) }
+    ? {
+        ...updated,
+        steps: updated.steps
+          .sort((a, b) => a.position - b.position)
+          .map((step: RecipeStep) => step.text),
+      }
     : updated;
 
   return NextResponse.json({ recipe: responseRecipe });
