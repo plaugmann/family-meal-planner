@@ -1,6 +1,4 @@
 import { NextResponse } from "next/server";
-import type { RecipeStep } from "@prisma/client";
-
 import { prisma } from "@/lib/prisma";
 import { getOrCreateHousehold, jsonError, parseJson } from "@/lib/api";
 
@@ -21,7 +19,7 @@ export async function GET(_request: Request, { params }: { params: { id: string 
     ...recipe,
     steps: recipe.steps
       .sort((a, b) => a.position - b.position)
-      .map((step: RecipeStep) => step.text),
+      .map((step: { text: string }) => step.text),
   };
 
   return NextResponse.json({ recipe: responseRecipe });
@@ -98,7 +96,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
         ...updated,
         steps: updated.steps
           .sort((a, b) => a.position - b.position)
-          .map((step: RecipeStep) => step.text),
+          .map((step: { text: string }) => step.text),
       }
     : updated;
 

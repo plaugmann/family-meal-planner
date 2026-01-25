@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "node ../../scripts/next-dev.cjs",
     "prisma:generate": "node ../../scripts/prisma-generate-web.cjs",
-    "build": "next build",
+    "build": "node ../../scripts/prisma-generate-web.cjs && next build",
     "start": "next start",
     "lint": "next lint"
   },
