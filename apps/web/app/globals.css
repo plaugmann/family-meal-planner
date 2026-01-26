@@ -60,6 +60,25 @@
 }
 
 @layer utilities {
+  .app-background {
+    background-image: linear-gradient(
+        rgba(248, 243, 238, 0.85),
+        rgba(248, 243, 238, 0.85)
+      ),
+      url("/Background.jpg");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+
+  .dark .app-background {
+    background-image: linear-gradient(
+        rgba(15, 23, 42, 0.85),
+        rgba(15, 23, 42, 0.85)
+      ),
+      url("/Background.jpg");
+  }
+
   .safe-bottom {
     padding-bottom: calc(env(safe-area-inset-bottom) + 5rem);
   }

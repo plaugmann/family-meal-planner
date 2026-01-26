@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getOrCreateHousehold, jsonError, parseJson } from "@/lib/api";
+import { jsonError, parseJson } from "@/lib/api";
+import { requireHousehold } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
 export async function GET(_request: Request, { params }: { params: { id: string } }) {
-  const household = await getOrCreateHousehold();
+  const household = await requireHousehold();
+  if (!household) {
+    return jsonError("NOT_ALLOWED", "Authentication required.", 401);
+  }
   const recipe = await prisma.recipe.findFirst({
     where: { id: params.id, householdId: household.id },
     include: { ingredients: true, steps: true },
@@ -26,6 +30,10 @@ export async function GET(_request: Request, { params }: { params: { id: string 
 }
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+  const household = await requireHousehold();
+  if (!household) {
+    return jsonError("NOT_ALLOWED", "Authentication required.", 401);
+  }
   const payload = await parseJson<{
     title?: string;
     imageUrl?: string | null;
@@ -40,7 +48,6 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     return jsonError("VALIDATION_ERROR", "Invalid JSON body.", 400);
   }
 
-  const household = await getOrCreateHousehold();
   const recipe = await prisma.recipe.findFirst({
     where: { id: params.id, householdId: household.id },
   });

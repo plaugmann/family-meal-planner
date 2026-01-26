@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getOrCreateHousehold, getWeekStartUtc, jsonError, parseJson } from "@/lib/api";
+import { getWeekStartUtc, jsonError, parseJson } from "@/lib/api";
+import { requireHousehold } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  const household = await getOrCreateHousehold();
+  const household = await requireHousehold();
+  if (!household) {
+    return jsonError("NOT_ALLOWED", "Authentication required.", 401);
+  }
   const weekStart = getWeekStartUtc(new Date());
 
   const weeklyPlan = await prisma.weeklyPlan.findFirst({
@@ -17,6 +21,10 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
+  const household = await requireHousehold();
+  if (!household) {
+    return jsonError("NOT_ALLOWED", "Authentication required.", 401);
+  }
   const payload = await parseJson<{
     weekStart?: string;
     items?: { recipeId: string; servings?: number }[];
@@ -37,7 +45,6 @@ export async function PUT(request: Request) {
     return jsonError("VALIDATION_ERROR", "Recipes must be unique.", 400);
   }
 
-  const household = await getOrCreateHousehold();
   const weekStart = new Date(payload.weekStart);
   if (Number.isNaN(weekStart.getTime())) {
     return jsonError("VALIDATION_ERROR", "weekStart must be a valid ISO date.", 400);

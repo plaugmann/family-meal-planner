@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireHousehold } from "@/lib/auth";
 import {
   extractDomain,
-  getOrCreateHousehold,
   jsonError,
   parseJson,
   stubParseRecipe,
@@ -11,6 +11,10 @@ import {
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const household = await requireHousehold();
+  if (!household) {
+    return jsonError("NOT_ALLOWED", "Authentication required.", 401);
+  }
   const payload = await parseJson<{ url?: string }>(request);
   if (!payload?.url) {
     return jsonError("VALIDATION_ERROR", "URL is required.", 400);
@@ -21,7 +25,6 @@ export async function POST(request: Request) {
     return jsonError("VALIDATION_ERROR", "URL is invalid.", 400);
   }
 
-  const household = await getOrCreateHousehold();
   const whitelist = await prisma.whitelistSite.findFirst({
     where: { householdId: household.id, domain, isActive: true },
   });

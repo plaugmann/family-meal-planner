@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getOrCreateHousehold } from "@/lib/api";
+import { jsonError } from "@/lib/api";
+import { requireHousehold } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const household = await getOrCreateHousehold();
+  const household = await requireHousehold();
+  if (!household) {
+    return jsonError("NOT_ALLOWED", "Authentication required.", 401);
+  }
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q")?.trim();
   const favorites = searchParams.get("favorites");

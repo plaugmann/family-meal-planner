@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { prisma } from "./prisma";
 
 export type ApiErrorCode =
   | "VALIDATION_ERROR"
@@ -32,21 +31,6 @@ export async function parseJson<T>(request: Request): Promise<T | null> {
   } catch {
     return null;
   }
-}
-
-export async function getOrCreateHousehold() {
-  const existing = await prisma.household.findFirst({ orderBy: { createdAt: "asc" } });
-  if (existing) {
-    return existing;
-  }
-
-  return prisma.household.create({
-    data: {
-      name: "Family Household",
-      familyFriendlyDefault: true,
-      minimizeWasteDefault: true,
-    },
-  });
 }
 
 export function getWeekStartUtc(date: Date) {

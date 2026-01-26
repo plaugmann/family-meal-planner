@@ -4,6 +4,11 @@ generator client {
   provider = "prisma-client-js"
 }
 
+generator client_web {
+  provider = "prisma-client-js"
+  output   = "../../apps/web/node_modules/@prisma/client"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -26,7 +31,8 @@ enum ShoppingCategory {
 model Household {
   id                    String          @id @default(cuid())
   name                  String
-  accessCode            String?
+  code                  String          @unique
+  pinHash               String
   familyFriendlyDefault Boolean         @default(true)
   minimizeWasteDefault  Boolean         @default(true)
   createdAt             DateTime        @default(now())
@@ -37,6 +43,7 @@ model Household {
   recipes         Recipe[]
   weeklyPlans     WeeklyPlan[]
   inventoryItems  InventoryItem[]
+  sessions        HouseholdSession[]
 }
 
 model User {
@@ -167,4 +174,19 @@ model ShoppingListItem {
   weeklyPlan WeeklyPlan @relation(fields: [weeklyPlanId], references: [id], onDelete: Cascade)
 
   @@index([weeklyPlanId, category])
+}
+
+model HouseholdSession {
+  id          String   @id @default(cuid())
+  householdId String
+  tokenHash   String   @unique
+  createdAt   DateTime @default(now())
+  lastUsedAt  DateTime @default(now())
+  expiresAt   DateTime
+  userAgent   String?
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@index([householdId])
+  @@index([expiresAt])
 }

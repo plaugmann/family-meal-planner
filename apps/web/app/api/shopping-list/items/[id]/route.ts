@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getOrCreateHousehold, jsonError, parseJson } from "@/lib/api";
+import { jsonError, parseJson } from "@/lib/api";
+import { requireHousehold } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+  const household = await requireHousehold();
+  if (!household) {
+    return jsonError("NOT_ALLOWED", "Authentication required.", 401);
+  }
   const payload = await parseJson<{
     isBought?: boolean;
     name?: string;
@@ -16,7 +21,9 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     return jsonError("VALIDATION_ERROR", "Invalid JSON body.", 400);
   }
 
-  const item = await prisma.shoppingListItem.findUnique({ where: { id: params.id } });
+  const item = await prisma.shoppingListItem.findFirst({
+    where: { id: params.id, weeklyPlan: { householdId: household.id } },
+  });
   if (!item) {
     return jsonError("NOT_FOUND", "Shopping list item not found.", 404);
   }
@@ -32,7 +39,6 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   });
 
   if (payload.isBought === true) {
-    const household = await getOrCreateHousehold();
     await prisma.inventoryItem.upsert({
       where: {
         householdId_name_location: {

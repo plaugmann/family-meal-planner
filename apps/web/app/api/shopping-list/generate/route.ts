@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { categorizeIngredient, getOrCreateHousehold, getWeekStartUtc, jsonError, normalizeText } from "@/lib/api";
+import { categorizeIngredient, getWeekStartUtc, jsonError, normalizeText } from "@/lib/api";
+import { requireHousehold } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -21,7 +22,10 @@ function splitQuantity(line: string) {
 }
 
 export async function POST() {
-  const household = await getOrCreateHousehold();
+  const household = await requireHousehold();
+  if (!household) {
+    return jsonError("NOT_ALLOWED", "Authentication required.", 401);
+  }
   const weekStart = getWeekStartUtc(new Date());
 
   const weeklyPlan = await prisma.weeklyPlan.findFirst({

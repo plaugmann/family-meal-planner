@@ -1,12 +1,15 @@
+import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 async function main() {
+  const pinHash = await bcrypt.hash("1234", 10);
   const household = await prisma.household.create({
     data: {
-      name: "Family Household",
-      accessCode: "1234",
+      name: "Family",
+      code: "family",
+      pinHash,
       familyFriendlyDefault: true,
       minimizeWasteDefault: true,
     },

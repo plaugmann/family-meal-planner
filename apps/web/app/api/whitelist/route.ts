@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getOrCreateHousehold, jsonError, normalizeText, parseJson } from "@/lib/api";
+import { jsonError, normalizeText, parseJson } from "@/lib/api";
+import { requireHousehold } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  const household = await getOrCreateHousehold();
+  const household = await requireHousehold();
+  if (!household) {
+    return jsonError("NOT_ALLOWED", "Authentication required.", 401);
+  }
   const sites = await prisma.whitelistSite.findMany({
     where: { householdId: household.id },
     orderBy: { createdAt: "asc" },
@@ -15,6 +19,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const household = await requireHousehold();
+  if (!household) {
+    return jsonError("NOT_ALLOWED", "Authentication required.", 401);
+  }
   const payload = await parseJson<{ domain?: string; name?: string }>(request);
   if (!payload?.domain) {
     return jsonError("VALIDATION_ERROR", "Domain is required.", 400);
@@ -24,8 +32,6 @@ export async function POST(request: Request) {
   if (!cleanedDomain.includes(".")) {
     return jsonError("VALIDATION_ERROR", "Domain must be valid.", 400);
   }
-
-  const household = await getOrCreateHousehold();
 
   try {
     const site = await prisma.whitelistSite.create({
