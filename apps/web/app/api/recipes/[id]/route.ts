@@ -22,7 +22,7 @@ export async function GET(_request: Request, { params }: { params: { id: string 
   const responseRecipe = {
     ...recipe,
     steps: recipe.steps
-      .sort((a, b) => a.position - b.position)
+      .sort((a: { position: number }, b: { position: number }) => a.position - b.position)
       .map((step: { text: string }) => step.text),
   };
 
@@ -102,7 +102,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     ? {
         ...updated,
         steps: updated.steps
-          .sort((a, b) => a.position - b.position)
+          .sort((a: { position: number }, b: { position: number }) => a.position - b.position)
           .map((step: { text: string }) => step.text),
       }
     : updated;
