@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   }
 
   const household = await prisma.household.findFirst({
-    where: { code },
+    where: { code: { equals: code } },
   });
 
   if (!household) {
