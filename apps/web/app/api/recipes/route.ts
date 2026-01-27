@@ -14,6 +14,10 @@ export async function GET(request: Request) {
   const q = searchParams.get("q")?.trim();
   const favorites = searchParams.get("favorites");
   const familyFriendly = searchParams.get("familyFriendly");
+  const limitParam = searchParams.get("limit");
+  const offsetParam = searchParams.get("offset");
+  const limit = limitParam ? Math.min(Math.max(Number(limitParam), 1), 100) : 20;
+  const offset = offsetParam ? Math.max(Number(offsetParam), 0) : 0;
 
   const where: { householdId: string; isFavorite?: boolean; isFamilyFriendly?: boolean; title?: { contains: string; mode: "insensitive" } } = {
     householdId: household.id,
@@ -29,10 +33,15 @@ export async function GET(request: Request) {
     where.isFamilyFriendly = familyFriendly === "true";
   }
 
-  const recipes = await prisma.recipe.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-  });
+  const [recipes, total] = await Promise.all([
+    prisma.recipe.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      skip: offset,
+    }),
+    prisma.recipe.count({ where }),
+  ]);
 
-  return NextResponse.json({ recipes });
+  return NextResponse.json({ recipes, total, limit, offset });
 }

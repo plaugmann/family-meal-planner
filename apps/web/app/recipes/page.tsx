@@ -35,22 +35,44 @@ export default function RecipesPage() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [search, setSearch] = React.useState("");
+  const [limit, setLimit] = React.useState(20);
+  const [offset, setOffset] = React.useState(0);
+  const [total, setTotal] = React.useState(0);
+  const [loadingMore, setLoadingMore] = React.useState(false);
   const [importUrl, setImportUrl] = React.useState("");
   const [importing, setImporting] = React.useState(false);
   const [pendingRecipe, setPendingRecipe] = React.useState<Recipe | null>(null);
   const [replaceDialogOpen, setReplaceDialogOpen] = React.useState(false);
+  const [externalQuery, setExternalQuery] = React.useState("");
+  const [externalResults, setExternalResults] = React.useState<
+    { title: string; url: string; isImported?: boolean; sourceDomain?: string; sourceName?: string }[]
+  >([]);
+  const [externalLoading, setExternalLoading] = React.useState(false);
+  const [externalError, setExternalError] = React.useState<string | null>(null);
 
   const { draftIds, add: addDraft, clear: clearDraft } = useDraftPlan();
 
   const hasPlan = weeklyPlan?.items?.length === MAX_ITEMS;
   const selectedIds = hasPlan ? weeklyPlan?.items.map((item) => item.recipeId) ?? [] : draftIds;
 
-  const fetchData = React.useCallback(async () => {
+  const fetchData = React.useCallback(async (options?: { reset?: boolean; offsetOverride?: number }) => {
     try {
-      setLoading(true);
+      const reset = options?.reset ?? false;
+      const nextOffset = options?.offsetOverride ?? (reset ? 0 : offset);
+      if (reset) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
       setError(null);
+      const params = new URLSearchParams();
+      if (search.trim()) {
+        params.set("q", search.trim());
+      }
+      params.set("limit", String(limit));
+      params.set("offset", String(nextOffset));
       const [recipesRes, planRes] = await Promise.all([
-        fetch("/api/recipes"),
+        fetch(`/api/recipes?${params.toString()}`),
         fetch("/api/weekly-plan"),
       ]);
       if (!recipesRes.ok || !planRes.ok) {
@@ -58,18 +80,32 @@ export default function RecipesPage() {
       }
       const recipesJson = await recipesRes.json();
       const planJson = await planRes.json();
-      setRecipes(recipesJson.recipes ?? []);
+      setRecipes((current) =>
+        reset ? recipesJson.recipes ?? [] : [...current, ...(recipesJson.recipes ?? [])]
+      );
+      setTotal(recipesJson.total ?? 0);
+      if (reset) {
+        setOffset(0);
+      }
       setWeeklyPlan(planJson.weeklyPlan ?? null);
     } catch (err) {
       setError("Unable to load recipes right now.");
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  }, []);
+  }, [limit, offset, search]);
 
   React.useEffect(() => {
-    fetchData();
+    fetchData({ reset: true });
   }, [fetchData]);
+
+  React.useEffect(() => {
+    const handle = setTimeout(() => {
+      fetchData({ reset: true });
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [search, limit, fetchData]);
 
   React.useEffect(() => {
     if (weeklyPlan || draftIds.length !== MAX_ITEMS) {
@@ -172,9 +208,61 @@ export default function RecipesPage() {
     }
   };
 
-  const filteredRecipes = recipes.filter((recipe) =>
-    recipe.title.toLowerCase().includes(search.toLowerCase())
-  );
+  const handleLoadMore = async () => {
+    const nextOffset = offset + limit;
+    setOffset(nextOffset);
+    await fetchData({ reset: false, offsetOverride: nextOffset });
+  };
+
+  const handleExternalSearch = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!externalQuery.trim()) {
+      setExternalError("Enter a search term.");
+      return;
+    }
+    try {
+      setExternalLoading(true);
+      setExternalError(null);
+      const params = new URLSearchParams({
+        q: externalQuery.trim(),
+        limit: "20",
+      });
+      const response = await fetch(`/api/recipes/search?${params.toString()}`);
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json?.error?.message ?? "Search failed.");
+      }
+      setExternalResults(json.results ?? []);
+    } catch (err) {
+      setExternalError("Unable to search external sites.");
+    } finally {
+      setExternalLoading(false);
+    }
+  };
+
+  const handleExternalImport = async (url: string) => {
+    try {
+      setImporting(true);
+      const response = await fetch("/api/recipes/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json?.error?.message ?? "Import failed.");
+      }
+      toast.success("Recipe imported.");
+      await fetchData({ reset: true });
+      if (json.recipe?.id) {
+        router.push(`/recipes/${json.recipe.id}`);
+      }
+    } catch (err) {
+      toast.error("Import failed. Check the whitelist first.");
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const replaceOptions = weeklyPlan?.items
     ? weeklyPlan.items
@@ -193,13 +281,40 @@ export default function RecipesPage() {
         <SectionHeader
           title="Search recipes"
           subtitle="Find a dinner by name."
-          actions={<Button onClick={fetchData} variant="secondary">Refresh</Button>}
+          actions={<Button onClick={() => fetchData({ reset: true })} variant="secondary">Refresh</Button>}
         />
         <Input
           placeholder="Search recipes by title..."
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setOffset(0);
+          }}
         />
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Show</span>
+          <Input
+            type="number"
+            min={5}
+            max={100}
+            value={limit}
+            onChange={(event) => {
+              const value = Number(event.target.value);
+              if (Number.isFinite(value) && value > 0) {
+                setLimit(value);
+                setOffset(0);
+              }
+            }}
+            className="w-20"
+          />
+          <span className="text-sm text-muted-foreground">recipes per page</span>
+          <Button
+            variant="outline"
+            onClick={() => fetchData({ reset: true })}
+          >
+            Apply
+          </Button>
+        </div>
 
         <SectionHeader
           title="Import recipe by URL"
@@ -216,10 +331,49 @@ export default function RecipesPage() {
           </Button>
         </form>
 
+        <SectionHeader
+          title="Find recipes online"
+          subtitle="Search whitelisted sites and import in one click."
+        />
+        <form onSubmit={handleExternalSearch} className="flex flex-col gap-2 md:flex-row">
+          <Input
+            placeholder="Search Madbanditten.dk..."
+            value={externalQuery}
+            onChange={(event) => setExternalQuery(event.target.value)}
+          />
+          <Button type="submit" disabled={externalLoading}>
+            {externalLoading ? "Searching..." : "Search"}
+          </Button>
+        </form>
+        {externalError ? (
+          <p className="text-sm text-destructive">{externalError}</p>
+        ) : null}
+        {externalResults.length > 0 ? (
+          <div className="space-y-2">
+            {externalResults.map((result) => (
+              <div key={result.url} className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-sm">
+                <div className="flex flex-col">
+                  <span>{result.title}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {result.sourceName ?? result.sourceDomain ?? "Unknown source"}
+                  </span>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => handleExternalImport(result.url)}
+                  disabled={result.isImported}
+                >
+                  {result.isImported ? "Imported" : "Import"}
+                </Button>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
         {loading ? <LoadingSkeleton count={4} /> : null}
         {error ? <ErrorState title="Recipes unavailable" description={error} /> : null}
 
-        {!loading && !error && filteredRecipes.length === 0 ? (
+        {!loading && !error && recipes.length === 0 ? (
           <EmptyState
             title="No recipes yet"
             description="Import a recipe to get started."
@@ -232,7 +386,7 @@ export default function RecipesPage() {
         ) : null}
 
         <div className="grid gap-4 md:grid-cols-2">
-          {filteredRecipes.map((recipe) => (
+          {recipes.map((recipe) => (
             <RecipeCard
               key={recipe.id}
               recipe={recipe}
@@ -243,6 +397,14 @@ export default function RecipesPage() {
             />
           ))}
         </div>
+
+        {!loading && recipes.length < total ? (
+          <div className="flex justify-center">
+            <Button variant="secondary" onClick={handleLoadMore} disabled={loadingMore}>
+              {loadingMore ? "Loading..." : "Load more"}
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       <RecipePickerDialog
