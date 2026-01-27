@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     return jsonError("VALIDATION_ERROR", "Invalid household code or PIN.", 400);
   }
 
-  const household = await prisma.household.findUnique({
+  const household = await prisma.household.findFirst({
     where: { code },
   });
 
