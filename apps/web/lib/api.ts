@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 
 export type ApiErrorCode =
   | "VALIDATION_ERROR"
