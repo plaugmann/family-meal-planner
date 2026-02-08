@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { jsonError, parseJson } from "@/lib/api";
 import { requireHousehold } from "@/lib/auth";
@@ -58,4 +58,24 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   }
 
   return NextResponse.json({ item: updated });
+}
+
+export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+  const household = await requireHousehold();
+  if (!household) {
+    return jsonError("NOT_ALLOWED", "Authentication required.", 401);
+  }
+
+  const item = await prisma.shoppingListItem.findFirst({
+    where: { id: params.id, weeklyPlan: { householdId: household.id } },
+  });
+  if (!item) {
+    return jsonError("NOT_FOUND", "Shopping list item not found.", 404);
+  }
+
+  await prisma.shoppingListItem.delete({
+    where: { id: item.id },
+  });
+
+  return NextResponse.json({ success: true });
 }

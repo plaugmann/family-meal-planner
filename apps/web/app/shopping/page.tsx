@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CheckCircle2, Copy, ShoppingBasket } from "lucide-react";
+import { CheckCircle2, Copy, ShoppingBasket, Trash2, Edit2, Check, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/AppShell";
@@ -34,6 +34,9 @@ export default function ShoppingPage() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [onlyUnbought, setOnlyUnbought] = React.useState(true);
+  const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [editName, setEditName] = React.useState("");
+  const [editQuantity, setEditQuantity] = React.useState("");
 
   const fetchPlan = React.useCallback(async () => {
     const planRes = await fetch("/api/weekly-plan");
@@ -98,6 +101,72 @@ export default function ShoppingPage() {
     }
   };
 
+  const handleDeleteItem = async (item: ShoppingListItem) => {
+    try {
+      const response = await fetch(`/api/shopping-list/items/${item.id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        throw new Error("Failed to delete item.");
+      }
+      setShoppingList((prev) =>
+        prev
+          ? {
+              ...prev,
+              items: prev.items.filter((existing) => existing.id !== item.id),
+            }
+          : prev
+      );
+      toast.success("Item removed.");
+    } catch (err) {
+      toast.error("Unable to delete this item.");
+    }
+  };
+
+  const handleStartEdit = (item: ShoppingListItem) => {
+    setEditingId(item.id);
+    setEditName(item.name);
+    setEditQuantity(item.quantityText || "");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditName("");
+    setEditQuantity("");
+  };
+
+  const handleSaveEdit = async (item: ShoppingListItem) => {
+    try {
+      const response = await fetch(`/api/shopping-list/items/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          name: editName.trim(), 
+          quantityText: editQuantity.trim() || null 
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to update item.");
+      }
+      const json = await response.json();
+      const updatedItem = json.item as ShoppingListItem;
+      setShoppingList((prev) =>
+        prev
+          ? {
+              ...prev,
+              items: prev.items.map((existing) =>
+                existing.id === updatedItem.id ? updatedItem : existing
+              ),
+            }
+          : prev
+      );
+      toast.success("Item updated.");
+      handleCancelEdit();
+    } catch (err) {
+      toast.error("Unable to update this item.");
+    }
+  };
+
   const grouped = React.useMemo(() => {
     if (!shoppingList) {
       return [];
@@ -130,6 +199,27 @@ export default function ShoppingPage() {
     }
   };
 
+  const handleExportToAlexa = async () => {
+    if (!shoppingList) {
+      return;
+    }
+    const lines = shoppingList.items
+      .filter((item) => !item.isBought)
+      .map((item) => item.name);
+    
+    // Create Alexa-compatible format (comma-separated list)
+    const alexaFormat = lines.join(", ");
+    
+    try {
+      await navigator.clipboard.writeText(alexaFormat);
+      toast.success("Copied in Alexa format! Say: 'Alexa, add to my shopping list' then paste each item.", {
+        duration: 5000,
+      });
+    } catch (err) {
+      toast.error("Unable to copy list.");
+    }
+  };
+
   return (
     <AppShell title="Shopping" subtitle="Everything you need for the week.">
       <div className="space-y-6">
@@ -144,6 +234,10 @@ export default function ShoppingPage() {
               <Button variant="outline" onClick={handleCopy}>
                 <Copy className="mr-2 h-4 w-4" />
                 Copy list
+              </Button>
+              <Button variant="outline" onClick={handleExportToAlexa}>
+                <ShoppingBasket className="mr-2 h-4 w-4" />
+                Export to Alexa
               </Button>
             </div>
           }
@@ -204,15 +298,70 @@ export default function ShoppingPage() {
                         onChange={() => handleToggleBought(item)}
                       />
                       <div className="flex-1">
-                        <p className={item.isBought ? "line-through text-muted-foreground" : ""}>
-                          {item.name}
-                        </p>
-                        {item.quantityText ? (
-                          <p className="text-xs text-muted-foreground">
-                            Suggested pack: {item.quantityText}
-                          </p>
-                        ) : null}
+                        {editingId === item.id ? (
+                          <div className="space-y-2">
+                            <input
+                              type="text"
+                              className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+                              value={editName}
+                              onChange={(e) => setEditName(e.target.value)}
+                              placeholder="Item name"
+                            />
+                            <input
+                              type="text"
+                              className="w-full rounded border border-border bg-background px-2 py-1 text-xs"
+                              value={editQuantity}
+                              onChange={(e) => setEditQuantity(e.target.value)}
+                              placeholder="Quantity (optional)"
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="default"
+                                onClick={() => handleSaveEdit(item)}
+                              >
+                                <Check className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={handleCancelEdit}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <p className={item.isBought ? "line-through text-muted-foreground" : ""}>
+                              {item.name}
+                            </p>
+                            {item.quantityText ? (
+                              <p className="text-xs text-muted-foreground">
+                                Suggested pack: {item.quantityText}
+                              </p>
+                            ) : null}
+                          </>
+                        )}
                       </div>
+                      {editingId !== item.id && (
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleStartEdit(item)}
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeleteItem(item)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
