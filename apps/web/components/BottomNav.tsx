@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, Compass, BookOpen, ShoppingBasket, Package } from "lucide-react";
+import { CalendarDays, Compass, BookOpen, ShoppingBasket, MessageSquare } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -11,7 +11,7 @@ const navItems = [
   { href: "/discover", label: "Discover", icon: Compass },
   { href: "/recipes", label: "Recipes", icon: BookOpen },
   { href: "/shopping", label: "Shopping", icon: ShoppingBasket },
-  { href: "/inventory", label: "Inventory", icon: Package },
+  { href: "/chat", label: "AI Chef", icon: MessageSquare },
 ];
 
 export function BottomNav() {
