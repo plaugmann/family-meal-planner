@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "scripts": {
     "dev": "node ../../scripts/next-dev.cjs",
-    "postinstall": "prisma generate --schema=../../packages/db/prisma/schema.prisma",
+    "postinstall": "rm -rf node_modules/.prisma node_modules/@prisma/client ../../packages/db/node_modules/.prisma ../../packages/db/node_modules/@prisma/client && prisma generate --schema=../../packages/db/prisma/schema.prisma",
     "prisma:generate": "node ../../scripts/run-prisma.cjs generate && node ../../scripts/sync-prisma-client.cjs",
     "build": "prisma generate --schema=../../packages/db/prisma/schema.prisma && next build",
     "start": "next start",
