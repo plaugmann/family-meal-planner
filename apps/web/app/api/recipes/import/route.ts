@@ -21,14 +21,9 @@ export async function POST(request: Request) {
     return jsonError("VALIDATION_ERROR", "URL is invalid.", 400);
   }
 
-  const whitelist = await prisma.whitelistSite.findFirst({
-    where: { householdId: household.id, domain, isActive: true },
-  });
-
-  if (!whitelist) {
-    return jsonError("NOT_ALLOWED", "Domain is not whitelisted.", 403, { domain });
-  }
-
+  // Allow import from any domain, not just whitelisted
+  // Search is still limited to whitelisted domains only
+  
   let noAdsParsed = null;
   try {
     noAdsParsed = await fetchNoAdsRecipe(payload.url);
