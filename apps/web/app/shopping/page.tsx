@@ -220,6 +220,23 @@ export default function ShoppingPage() {
     }
   };
 
+  const handleSendToAlexaZapier = async () => {
+    try {
+      const response = await fetch("/api/integrations/alexa/webhook", {
+        method: "POST",
+      });
+      if (!response.ok) {
+        throw new Error("Failed to trigger webhook.");
+      }
+      const json = await response.json();
+      toast.success(`Sent ${json.count} items to Alexa via Zapier!`, {
+        duration: 4000,
+      });
+    } catch (err) {
+      toast.error("Unable to send to Alexa. Make sure Zapier is configured.");
+    }
+  };
+
   return (
     <AppShell title="Shopping" subtitle="Everything you need for the week.">
       <div className="space-y-6">
@@ -236,8 +253,12 @@ export default function ShoppingPage() {
                 Copy list
               </Button>
               <Button variant="outline" onClick={handleExportToAlexa}>
+                <Copy className="mr-2 h-4 w-4" />
+                Copy for Alexa
+              </Button>
+              <Button variant="default" onClick={handleSendToAlexaZapier}>
                 <ShoppingBasket className="mr-2 h-4 w-4" />
-                Export to Alexa
+                Send to Alexa
               </Button>
             </div>
           }
