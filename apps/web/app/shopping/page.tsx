@@ -220,20 +220,56 @@ export default function ShoppingPage() {
     }
   };
 
-  const handleSendToAlexaZapier = async () => {
-    try {
-      const response = await fetch("/api/integrations/alexa/webhook", {
-        method: "POST",
+  const handleSendToAlexaIFTTT = async () => {
+    if (!shoppingList) {
+      return;
+    }
+
+    const items = shoppingList.items
+      .filter((item) => !item.isBought)
+      .map((item) => item.name);
+
+    if (items.length === 0) {
+      toast.error("No items to send!");
+      return;
+    }
+
+    // IFTTT webhook URL - user needs to set this in settings or we can use env variable
+    const iftttKey = process.env.NEXT_PUBLIC_IFTTT_KEY;
+    
+    if (!iftttKey) {
+      toast.error("Please configure IFTTT key in settings", {
+        duration: 5000,
+        action: {
+          label: "How?",
+          onClick: () => window.open("/settings", "_blank"),
+        },
       });
-      if (!response.ok) {
-        throw new Error("Failed to trigger webhook.");
+      return;
+    }
+
+    try {
+      // Send each item individually to IFTTT
+      let successCount = 0;
+      for (const item of items) {
+        const response = await fetch(
+          `https://maker.ifttt.com/trigger/meal_planner_shopping_list/with/key/${iftttKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ value1: item }),
+          }
+        );
+        if (response.ok) {
+          successCount++;
+        }
       }
-      const json = await response.json();
-      toast.success(`Sent ${json.count} items to Alexa via Zapier!`, {
+      
+      toast.success(`Sent ${successCount} items to Alexa!`, {
         duration: 4000,
       });
     } catch (err) {
-      toast.error("Unable to send to Alexa. Make sure Zapier is configured.");
+      toast.error("Unable to send to Alexa. Check your IFTTT configuration.");
     }
   };
 
@@ -256,7 +292,7 @@ export default function ShoppingPage() {
                 <Copy className="mr-2 h-4 w-4" />
                 Copy for Alexa
               </Button>
-              <Button variant="default" onClick={handleSendToAlexaZapier}>
+              <Button variant="default" onClick={handleSendToAlexaIFTTT}>
                 <ShoppingBasket className="mr-2 h-4 w-4" />
                 Send to Alexa
               </Button>
