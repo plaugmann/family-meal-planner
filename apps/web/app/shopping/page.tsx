@@ -220,56 +220,43 @@ export default function ShoppingPage() {
     }
   };
 
-  const handleSendToAlexaIFTTT = async () => {
+  const handleEmailToAlexa = () => {
     if (!shoppingList) {
       return;
     }
 
     const items = shoppingList.items
       .filter((item) => !item.isBought)
-      .map((item) => item.name);
+      .map((item) => `- ${item.name}${item.quantityText ? ` (${item.quantityText})` : ""}`)
+      .join("\n");
 
     if (items.length === 0) {
       toast.error("No items to send!");
       return;
     }
 
-    // IFTTT webhook URL - user needs to set this in settings or we can use env variable
-    const iftttKey = process.env.NEXT_PUBLIC_IFTTT_KEY;
+    // Create email with shopping list
+    const subject = encodeURIComponent("Shopping List from Meal Planner");
+    const body = encodeURIComponent(
+      `Here's my shopping list:\n\n${items}\n\nYou can add these to Alexa by saying: "Alexa, add [item] to my shopping list"`
+    );
     
-    if (!iftttKey) {
-      toast.error("Please configure IFTTT key in settings", {
-        duration: 5000,
-        action: {
-          label: "How?",
-          onClick: () => window.open("/settings", "_blank"),
-        },
-      });
-      return;
-    }
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+    
+    toast.success("Email opened! Send to yourself and add items to Alexa manually.", {
+      duration: 6000,
+    });
+  };
 
+  const handleShareableLink = async () => {
+    const url = `${window.location.origin}/shopping/share/${shoppingList?.weeklyPlanId}`;
     try {
-      // Send each item individually to IFTTT
-      let successCount = 0;
-      for (const item of items) {
-        const response = await fetch(
-          `https://maker.ifttt.com/trigger/meal_planner_shopping_list/with/key/${iftttKey}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ value1: item }),
-          }
-        );
-        if (response.ok) {
-          successCount++;
-        }
-      }
-      
-      toast.success(`Sent ${successCount} items to Alexa!`, {
-        duration: 4000,
+      await navigator.clipboard.writeText(url);
+      toast.success("Shareable link copied! Open on any device to view your list.", {
+        duration: 5000,
       });
     } catch (err) {
-      toast.error("Unable to send to Alexa. Check your IFTTT configuration.");
+      toast.error("Unable to copy link.");
     }
   };
 
@@ -290,11 +277,11 @@ export default function ShoppingPage() {
               </Button>
               <Button variant="outline" onClick={handleExportToAlexa}>
                 <Copy className="mr-2 h-4 w-4" />
-                Copy for Alexa
+                Copy List
               </Button>
-              <Button variant="default" onClick={handleSendToAlexaIFTTT}>
+              <Button variant="outline" onClick={handleEmailToAlexa}>
                 <ShoppingBasket className="mr-2 h-4 w-4" />
-                Send to Alexa
+                Email List
               </Button>
             </div>
           }
