@@ -19,12 +19,22 @@ export async function GET(request: Request) {
   const limit = limitParam ? Math.min(Math.max(Number(limitParam), 1), 100) : 20;
   const offset = offsetParam ? Math.max(Number(offsetParam), 0) : 0;
 
-  const where: { householdId: string; isFavorite?: boolean; isFamilyFriendly?: boolean; title?: { contains: string; mode: "insensitive" } } = {
+  const where: { householdId: string; isFavorite?: boolean; isFamilyFriendly?: boolean; AND?: Array<{ title: { contains: string; mode: "insensitive" } }>; title?: { contains: string; mode: "insensitive" } } = {
     householdId: household.id,
   };
 
   if (q) {
-    where.title = { contains: q, mode: "insensitive" };
+    // Split search query by spaces and search for all terms
+    const terms = q.split(/\s+/).filter(Boolean);
+    if (terms.length > 1) {
+      // For multi-word searches, match ALL terms (AND logic)
+      where.AND = terms.map(term => ({
+        title: { contains: term, mode: "insensitive" as const }
+      }));
+    } else {
+      // For single word, use simple contains
+      where.title = { contains: q, mode: "insensitive" };
+    }
   }
   if (favorites !== null) {
     where.isFavorite = favorites === "true";
