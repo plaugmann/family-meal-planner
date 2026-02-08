@@ -65,7 +65,13 @@ Do not suggest breakfast, lunch, or dessert recipes unless specifically asked.`,
     if (!response.ok) {
       const error = await response.json();
       console.error("OpenAI API error:", error);
-      return jsonError("IMPORT_FAILED", "Failed to get response from AI.", 500);
+      return NextResponse.json({
+        error: {
+          code: "IMPORT_FAILED",
+          message: `OpenAI API error: ${error.error?.message || response.statusText}`,
+          details: error,
+        },
+      }, { status: response.status });
     }
 
     const data = await response.json();

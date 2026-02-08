@@ -3,6 +3,8 @@
 import * as React from "react";
 import { Send, Bot, User, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -126,7 +128,15 @@ export default function ChatPage() {
                     }`}
                   >
                     <CardContent className="p-3">
-                      <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                      {message.role === "assistant" ? (
+                        <div className="prose prose-sm max-w-none dark:prose-invert">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {message.content}
+                          </ReactMarkdown>
+                        </div>
+                      ) : (
+                        <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                      )}
                     </CardContent>
                   </Card>
                   {message.role === "user" && (
