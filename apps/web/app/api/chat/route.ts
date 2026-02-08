@@ -17,7 +17,7 @@ export async function POST(request: Request) {
 
   const openaiKey = process.env.OPENAI_API_KEY;
   if (!openaiKey) {
-    return jsonError("CONFIG_ERROR", "OpenAI API key not configured.", 500);
+    return jsonError("NOT_ALLOWED", "OpenAI API key not configured.", 500);
   }
 
   try {
@@ -65,7 +65,7 @@ Do not suggest breakfast, lunch, or dessert recipes unless specifically asked.`,
     if (!response.ok) {
       const error = await response.json();
       console.error("OpenAI API error:", error);
-      return jsonError("AI_ERROR", "Failed to get response from AI.", 500);
+      return jsonError("IMPORT_FAILED", "Failed to get response from AI.", 500);
     }
 
     const data = await response.json();
@@ -81,6 +81,6 @@ Do not suggest breakfast, lunch, or dessert recipes unless specifically asked.`,
     });
   } catch (error) {
     console.error("Chat API error:", error);
-    return jsonError("AI_ERROR", "Unable to process your request.", 500);
+    return jsonError("IMPORT_FAILED", "Unable to process your request.", 500);
   }
 }
