@@ -29,6 +29,7 @@ export default function WhitelistPage() {
   const [domain, setDomain] = React.useState("");
   const [name, setName] = React.useState("");
   const [confirmSite, setConfirmSite] = React.useState<WhitelistSite | null>(null);
+  const [confirmAction, setConfirmAction] = React.useState<"disable" | "remove">("disable");
 
   const fetchSites = React.useCallback(async () => {
     try {
@@ -51,9 +52,27 @@ export default function WhitelistPage() {
     fetchSites();
   }, [fetchSites]);
 
+  const normalizeDomainInput = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return "";
+    }
+    const normalized = trimmed.toLowerCase();
+    if (normalized.includes("://")) {
+      try {
+        const url = new URL(normalized);
+        return url.hostname.replace(/^www\./, "");
+      } catch {
+        return trimmed;
+      }
+    }
+    return normalized.split("/")[0]?.replace(/^www\./, "") ?? normalized;
+  };
+
   const handleAdd = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!domain.trim()) {
+    const cleanedDomain = normalizeDomainInput(domain);
+    if (!cleanedDomain) {
       toast.error("Domain is required.");
       return;
     }
@@ -61,7 +80,7 @@ export default function WhitelistPage() {
       const response = await fetch("/api/whitelist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ domain: domain.trim(), name: name.trim() || undefined }),
+        body: JSON.stringify({ domain: cleanedDomain, name: name.trim() || undefined }),
       });
       const json = await response.json();
       if (!response.ok) {
@@ -97,6 +116,25 @@ export default function WhitelistPage() {
     }
   };
 
+  const handleRemove = async () => {
+    if (!confirmSite) {
+      return;
+    }
+    try {
+      const response = await fetch(`/api/whitelist/${confirmSite.id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        throw new Error("Failed to delete.");
+      }
+      toast.success("Domain removed.");
+      setConfirmSite(null);
+      await fetchSites();
+    } catch (err) {
+      toast.error("Unable to remove domain.");
+    }
+  };
+
   return (
     <AppShell title="Whitelist" subtitle="Trusted recipe sources only.">
       <div className="space-y-6">
@@ -106,6 +144,7 @@ export default function WhitelistPage() {
             placeholder="domain.com"
             value={domain}
             onChange={(event) => setDomain(event.target.value)}
+            onBlur={() => setDomain((current) => normalizeDomainInput(current))}
           />
           <Input
             placeholder="Optional name"
@@ -147,10 +186,23 @@ export default function WhitelistPage() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setConfirmSite(site)}
+                    onClick={() => {
+                      setConfirmAction("disable");
+                      setConfirmSite(site);
+                    }}
                     disabled={!site.isActive}
                   >
                     Disable
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => {
+                      setConfirmAction("remove");
+                      setConfirmSite(site);
+                    }}
+                  >
+                    Remove
                   </Button>
                 </div>
               </CardContent>
@@ -162,18 +214,28 @@ export default function WhitelistPage() {
       <Dialog open={!!confirmSite} onOpenChange={(open) => !open && setConfirmSite(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Disable domain?</DialogTitle>
+            <DialogTitle>
+              {confirmAction === "remove" ? "Remove domain?" : "Disable domain?"}
+            </DialogTitle>
             <DialogDescription>
-              Imports and discovery will be blocked for {confirmSite?.domain}.
+              {confirmAction === "remove"
+                ? `This will delete ${confirmSite?.domain} from your whitelist.`
+                : `Imports and discovery will be blocked for ${confirmSite?.domain}.`}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="secondary" onClick={() => setConfirmSite(null)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDisable}>
-              Disable
-            </Button>
+            {confirmAction === "remove" ? (
+              <Button variant="destructive" onClick={handleRemove}>
+                Remove
+              </Button>
+            ) : (
+              <Button variant="destructive" onClick={handleDisable}>
+                Disable
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

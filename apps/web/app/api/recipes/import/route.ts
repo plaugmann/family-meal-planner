@@ -1,12 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireHousehold } from "@/lib/auth";
-import {
-  extractDomain,
-  jsonError,
-  parseJson,
-  stubParseRecipe,
-} from "@/lib/api";
+import { extractDomain, jsonError, parseJson, stubParseRecipe } from "@/lib/api";
+import { fetchNoAdsRecipe } from "@/lib/recipe-scrapers/noadsrecipe";
 
 export const runtime = "nodejs";
 
@@ -33,7 +29,22 @@ export async function POST(request: Request) {
     return jsonError("NOT_ALLOWED", "Domain is not whitelisted.", 403, { domain });
   }
 
-  const parsed = stubParseRecipe(payload.url);
+  let noAdsParsed = null;
+  try {
+    noAdsParsed = await fetchNoAdsRecipe(payload.url);
+  } catch {
+    noAdsParsed = null;
+  }
+
+  const parsed = noAdsParsed
+    ? {
+        title: noAdsParsed.title,
+        imageUrl: noAdsParsed.imageUrl,
+        servings: noAdsParsed.servings,
+        ingredients: noAdsParsed.ingredients,
+        steps: noAdsParsed.directions,
+      }
+    : stubParseRecipe(payload.url);
 
   try {
     const recipe = await prisma.recipe.create({
@@ -46,7 +57,7 @@ export async function POST(request: Request) {
         servings: parsed.servings,
         isFavorite: false,
         isFamilyFriendly: household.familyFriendlyDefault,
-        needsReview: false,
+        needsReview: !noAdsParsed,
         ingredients: {
           create: parsed.ingredients.map((line, index) => ({
             position: index + 1,

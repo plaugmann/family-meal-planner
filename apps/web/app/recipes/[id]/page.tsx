@@ -13,6 +13,14 @@ import { SectionHeader } from "@/components/SectionHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { useDraftPlan } from "@/lib/draft-plan";
 import type { Recipe, RecipeDetail, WeeklyPlan } from "@/lib/types";
@@ -29,6 +37,69 @@ function getWeekStartIso() {
   return utc.toISOString();
 }
 
+const FRACTIONS: Record<string, number> = {
+  "¼": 0.25,
+  "½": 0.5,
+  "¾": 0.75,
+  "⅓": 1 / 3,
+  "⅔": 2 / 3,
+  "⅛": 0.125,
+  "⅜": 0.375,
+  "⅝": 0.625,
+  "⅞": 0.875,
+};
+
+function parseAmountToken(token: string) {
+  const trimmed = token.trim();
+  if (FRACTIONS[trimmed] !== undefined) {
+    return FRACTIONS[trimmed];
+  }
+  if (trimmed.includes("/")) {
+    const [num, den] = trimmed.split("/").map((value) => Number(value));
+    if (Number.isFinite(num) && Number.isFinite(den) && den !== 0) {
+      return num / den;
+    }
+  }
+  const normalized = trimmed.replace(",", ".");
+  const value = Number(normalized);
+  return Number.isFinite(value) ? value : null;
+}
+
+function formatAmount(value: number) {
+  if (Number.isInteger(value)) {
+    return value.toString();
+  }
+  const rounded = Math.round(value * 100) / 100;
+  return rounded.toString().replace(/\.0+$/, "");
+}
+
+function scaleIngredientLine(line: string, fromServings: number, toServings: number) {
+  if (!fromServings || !toServings || fromServings === toServings) {
+    return line;
+  }
+  const factor = toServings / fromServings;
+  return line.replace(/(\d+\s+\d+\/\d+|\d+\/\d+|\d+[.,]?\d*|[¼½¾⅓⅔⅛⅜⅝⅞])(?!%)/g, (match) => {
+    const parts = match.split(" ");
+    let amount = 0;
+    if (parts.length === 2) {
+      const first = parseAmountToken(parts[0]);
+      const second = parseAmountToken(parts[1]);
+      if (first === null || second === null) {
+        return match;
+      }
+      amount = first + second;
+    } else {
+      const parsed = parseAmountToken(match);
+      if (parsed === null) {
+        return match;
+      }
+      amount = parsed;
+    }
+    const scaled = amount * factor;
+    return formatAmount(scaled);
+  });
+}
+
 export default function RecipeDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -38,6 +109,8 @@ export default function RecipeDetailPage() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [replaceDialogOpen, setReplaceDialogOpen] = React.useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
+  const [servings, setServings] = React.useState(4);
   const { draftIds, add: addDraft, clear: clearDraft } = useDraftPlan();
 
   const hasPlan = weeklyPlan?.items?.length === MAX_ITEMS;
@@ -70,6 +143,12 @@ export default function RecipeDetailPage() {
   React.useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  React.useEffect(() => {
+    if (recipe?.servings) {
+      setServings(recipe.servings);
+    }
+  }, [recipe]);
 
   React.useEffect(() => {
     if (weeklyPlan || draftIds.length !== MAX_ITEMS) {
@@ -175,6 +254,24 @@ export default function RecipeDetailPage() {
         .filter(Boolean)
     : [];
 
+  const handleDelete = async () => {
+    if (!recipe) {
+      return;
+    }
+    try {
+      const response = await fetch(`/api/recipes/${recipe.id}`, { method: "DELETE" });
+      if (!response.ok) {
+        throw new Error("Failed to delete.");
+      }
+      toast.success("Recipe removed.");
+      router.push("/recipes");
+    } catch (err) {
+      toast.error("Unable to remove recipe.");
+    } finally {
+      setDeleteConfirmOpen(false);
+    }
+  };
+
   return (
     <AppShell title="Recipe" subtitle="Dinner details">
       {loading ? <LoadingSkeleton count={1} /> : null}
@@ -194,7 +291,7 @@ export default function RecipeDetailPage() {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="font-display text-2xl font-semibold">{recipe.title}</p>
-                  <p className="text-sm text-muted-foreground">{recipe.servings} servings</p>
+                  <p className="text-sm text-muted-foreground">{servings} servings</p>
                 </div>
                 <Button variant="ghost" size="icon" onClick={toggleFavorite}>
                   <Heart className={recipe.isFavorite ? "h-5 w-5 fill-rose-500 text-rose-500" : "h-5 w-5"} />
@@ -204,16 +301,45 @@ export default function RecipeDetailPage() {
                 {recipe.isFamilyFriendly ? <Badge variant="secondary">Family-friendly</Badge> : null}
                 {recipe.sourceDomain ? <Badge variant="outline">{recipe.sourceDomain}</Badge> : null}
               </div>
-              <Button onClick={handleSelect}>Select for this week</Button>
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={handleSelect}>Select for this week</Button>
+                <Button variant="destructive" onClick={() => setDeleteConfirmOpen(true)}>
+                  Remove recipe
+                </Button>
+              </div>
             </div>
           </div>
 
-          <SectionHeader title="Ingredients" subtitle="Everything you need for this meal." />
+          <SectionHeader
+            title="Ingredients"
+            subtitle="Everything you need for this meal."
+            actions={
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setServings((current) => Math.max(1, current - 1))}
+                >
+                  -
+                </Button>
+                <span className="text-sm font-semibold">{servings} servings</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setServings((current) => current + 1)}
+                >
+                  +
+                </Button>
+              </div>
+            }
+          />
           <Card>
             <CardContent className="space-y-2 pt-5">
               <ul className="list-disc space-y-2 pl-5 text-sm">
                 {recipe.ingredients.map((ingredient) => (
-                  <li key={ingredient.id}>{ingredient.line}</li>
+                  <li key={ingredient.id}>
+                    {scaleIngredientLine(ingredient.line, recipe.servings || 4, servings)}
+                  </li>
                 ))}
               </ul>
             </CardContent>
@@ -248,6 +374,25 @@ export default function RecipeDetailPage() {
         confirmLabel="Replace"
         onConfirm={handleReplaceConfirm}
       />
+
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove recipe?</DialogTitle>
+            <DialogDescription>
+              This will permanently delete the recipe and its ingredients.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setDeleteConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDelete}>
+              Remove
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   );
 }

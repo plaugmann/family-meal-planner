@@ -33,3 +33,21 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
   return NextResponse.json({ site: updated });
 }
+
+export async function DELETE(_request: Request, { params }: { params: { id: string } }) {
+  const household = await requireHousehold();
+  if (!household) {
+    return jsonError("NOT_ALLOWED", "Authentication required.", 401);
+  }
+
+  const site = await prisma.whitelistSite.findFirst({
+    where: { id: params.id, householdId: household.id },
+  });
+
+  if (!site) {
+    return jsonError("NOT_FOUND", "Whitelist site not found.", 404);
+  }
+
+  await prisma.whitelistSite.delete({ where: { id: site.id } });
+  return NextResponse.json({ ok: true });
+}

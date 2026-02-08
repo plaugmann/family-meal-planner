@@ -28,7 +28,18 @@ export async function POST(request: Request) {
     return jsonError("VALIDATION_ERROR", "Domain is required.", 400);
   }
 
-  const cleanedDomain = normalizeText(payload.domain).replace(/^www\./, "");
+  let cleanedDomain = normalizeText(payload.domain).replace(/\s+/g, "");
+  if (cleanedDomain.includes("://")) {
+    try {
+      cleanedDomain = new URL(cleanedDomain).hostname;
+    } catch {
+      return jsonError("VALIDATION_ERROR", "Domain must be valid.", 400);
+    }
+  } else {
+    cleanedDomain = cleanedDomain.split("/")[0] ?? cleanedDomain;
+  }
+
+  cleanedDomain = cleanedDomain.replace(/^www\./, "");
   if (!cleanedDomain.includes(".")) {
     return jsonError("VALIDATION_ERROR", "Domain must be valid.", 400);
   }
