@@ -2,12 +2,13 @@
 
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Heart } from "lucide-react";
+import { Heart, Printer } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/AppShell";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingSkeleton } from "@/components/LoadingSkeleton";
+import { useLoading } from "@/components/LoadingOverlay";
 import { RecipePickerDialog } from "@/components/RecipePickerDialog";
 import { SectionHeader } from "@/components/SectionHeader";
 import { Badge } from "@/components/ui/badge";
@@ -103,6 +104,7 @@ function scaleIngredientLine(line: string, fromServings: number, toServings: num
 export default function RecipeDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const { showLoading, hideLoading } = useLoading();
   const [recipe, setRecipe] = React.useState<RecipeDetail | null>(null);
   const [recipes, setRecipes] = React.useState<Recipe[]>([]);
   const [weeklyPlan, setWeeklyPlan] = React.useState<WeeklyPlan | null>(null);
@@ -201,6 +203,7 @@ export default function RecipeDetailPage() {
         : { recipeId: item.recipeId, servings: item.servings }
     );
     try {
+      showLoading();
       const response = await fetch("/api/weekly-plan", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -217,6 +220,8 @@ export default function RecipeDetailPage() {
       await fetchData();
     } catch (err) {
       toast.error("Unable to update the plan.");
+    } finally {
+      hideLoading();
     }
   };
 
@@ -225,6 +230,7 @@ export default function RecipeDetailPage() {
       return;
     }
     try {
+      showLoading();
       const response = await fetch(`/api/recipes/${recipe.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -238,6 +244,8 @@ export default function RecipeDetailPage() {
       toast.success(json.recipe.isFavorite ? "Added to favorites." : "Removed from favorites.");
     } catch (err) {
       toast.error("Unable to update favorite.");
+    } finally {
+      hideLoading();
     }
   };
 
@@ -259,6 +267,7 @@ export default function RecipeDetailPage() {
       return;
     }
     try {
+      showLoading();
       const response = await fetch(`/api/recipes/${recipe.id}`, { method: "DELETE" });
       if (!response.ok) {
         throw new Error("Failed to delete.");
@@ -269,7 +278,12 @@ export default function RecipeDetailPage() {
       toast.error("Unable to remove recipe.");
     } finally {
       setDeleteConfirmOpen(false);
+      hideLoading();
     }
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   return (
@@ -279,30 +293,34 @@ export default function RecipeDetailPage() {
 
       {recipe ? (
         <div className="space-y-6">
-          <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
-            <div className="h-48 w-full overflow-hidden">
+          <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft print:border-none print:shadow-none">
+            <div className="h-48 w-full overflow-hidden print:h-auto print:max-h-64">
               <img
                 src={recipe.imageUrl ?? "/icon.svg"}
                 alt={recipe.title}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-cover print:object-contain"
               />
             </div>
-            <div className="space-y-4 p-5">
+            <div className="space-y-4 p-5 print:p-0">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="font-display text-2xl font-semibold">{recipe.title}</p>
-                  <p className="text-sm text-muted-foreground">{servings} servings</p>
+                  <p className="font-display text-2xl font-semibold print:print-title">{recipe.title}</p>
+                  <p className="text-sm text-muted-foreground print:text-base print:text-black">{servings} servings</p>
                 </div>
-                <Button variant="ghost" size="icon" onClick={toggleFavorite}>
+                <Button variant="ghost" size="icon" onClick={toggleFavorite} className="no-print">
                   <Heart className={recipe.isFavorite ? "h-5 w-5 fill-rose-500 text-rose-500" : "h-5 w-5"} />
                 </Button>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 no-print">
                 {recipe.isFamilyFriendly ? <Badge variant="secondary">Family-friendly</Badge> : null}
                 {recipe.sourceDomain ? <Badge variant="outline">{recipe.sourceDomain}</Badge> : null}
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 no-print">
                 <Button onClick={handleSelect}>Select for this week</Button>
+                <Button variant="secondary" onClick={handlePrint}>
+                  <Printer className="mr-2 h-4 w-4" />
+                  Print recipe
+                </Button>
                 <Button variant="destructive" onClick={() => setDeleteConfirmOpen(true)}>
                   Remove recipe
                 </Button>
@@ -310,32 +328,34 @@ export default function RecipeDetailPage() {
             </div>
           </div>
 
-          <SectionHeader
-            title="Ingredients"
-            subtitle="Everything you need for this meal."
-            actions={
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setServings((current) => Math.max(1, current - 1))}
-                >
-                  -
-                </Button>
-                <span className="text-sm font-semibold">{servings} servings</span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setServings((current) => current + 1)}
-                >
-                  +
-                </Button>
-              </div>
-            }
-          />
-          <Card>
-            <CardContent className="space-y-2 pt-5">
-              <ul className="list-disc space-y-2 pl-5 text-sm">
+          <div className="print:print-section">
+            <SectionHeader
+              title="Ingredients"
+              subtitle="Everything you need for this meal."
+              actions={
+                <div className="flex items-center gap-2 no-print">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setServings((current) => Math.max(1, current - 1))}
+                  >
+                    -
+                  </Button>
+                  <span className="text-sm font-semibold">{servings} servings</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setServings((current) => current + 1)}
+                  >
+                    +
+                  </Button>
+                </div>
+              }
+            />
+          </div>
+          <Card className="print:border-none print:shadow-none">
+            <CardContent className="space-y-2 pt-5 print:p-0">
+              <ul className="list-disc space-y-2 pl-5 text-sm print:text-base print:space-y-1">
                 {recipe.ingredients.map((ingredient) => (
                   <li key={ingredient.id}>
                     {scaleIngredientLine(ingredient.line, recipe.servings || 4, servings)}
@@ -345,19 +365,21 @@ export default function RecipeDetailPage() {
             </CardContent>
           </Card>
 
-          <SectionHeader title="Steps" subtitle="Simple, quick instructions." />
-          <Card>
-            <CardContent className="space-y-3 pt-5">
+          <div className="print:print-section">
+            <SectionHeader title="Steps" subtitle="Simple, quick instructions." />
+          </div>
+          <Card className="print:border-none print:shadow-none">
+            <CardContent className="space-y-3 pt-5 print:p-0">
               {recipe.steps.map((step, index) => (
-                <div key={`${index}-${step}`} className="flex items-start gap-3 text-sm">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-xs font-semibold">
+                <div key={`${index}-${step}`} className="flex items-start gap-3 text-sm print:text-base">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-xs font-semibold print:bg-gray-200">
                     {index + 1}
                   </div>
                   <p>{step}</p>
                 </div>
               ))}
-              <Separator />
-              <Button variant="secondary" onClick={() => router.push("/recipes")}>
+              <Separator className="no-print" />
+              <Button variant="secondary" onClick={() => router.push("/recipes")} className="no-print">
                 Back to recipes
               </Button>
             </CardContent>

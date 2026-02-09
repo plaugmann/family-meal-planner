@@ -2,6 +2,7 @@ import "./globals.css";
 
 import type { Metadata } from "next";
 
+import { LoadingProvider } from "@/components/LoadingOverlay";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
@@ -27,11 +28,16 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+      </head>
       <body className="font-sans">
         <ThemeProvider>
-          {children}
-          <Toaster richColors />
-          <ServiceWorkerRegister />
+          <LoadingProvider>
+            {children}
+            <Toaster richColors />
+            <ServiceWorkerRegister />
+          </LoadingProvider>
         </ThemeProvider>
       </body>
     </html>

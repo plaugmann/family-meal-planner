@@ -83,3 +83,57 @@
     padding-bottom: calc(env(safe-area-inset-bottom) + 5rem);
   }
 }
+
+@media print {
+  @page {
+    size: A4;
+    margin: 2cm;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  header,
+  nav,
+  button,
+  .no-print,
+  [role="dialog"],
+  [data-sonner-toaster] {
+    display: none !important;
+  }
+
+  .app-background {
+    background: none !important;
+  }
+
+  img {
+    max-width: 100%;
+    page-break-inside: avoid;
+  }
+
+  h1, h2, h3 {
+    page-break-after: avoid;
+  }
+
+  ul, ol {
+    page-break-inside: avoid;
+  }
+
+  .print-title {
+    font-size: 24pt;
+    font-weight: bold;
+    margin-bottom: 12pt;
+  }
+
+  .print-section {
+    margin-top: 18pt;
+  }
+
+  .print-section-title {
+    font-size: 16pt;
+    font-weight: bold;
+    margin-bottom: 8pt;
+  }
+}

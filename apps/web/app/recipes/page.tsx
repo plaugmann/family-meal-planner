@@ -8,6 +8,7 @@ import { AppShell } from "@/components/AppShell";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingSkeleton } from "@/components/LoadingSkeleton";
+import { useLoading } from "@/components/LoadingOverlay";
 import { RecipeCard } from "@/components/RecipeCard";
 import { RecipePickerDialog } from "@/components/RecipePickerDialog";
 import { SectionHeader } from "@/components/SectionHeader";
@@ -30,6 +31,7 @@ function getWeekStartIso() {
 
 export default function RecipesPage() {
   const router = useRouter();
+  const { showLoading, hideLoading } = useLoading();
   const [recipes, setRecipes] = React.useState<Recipe[]>([]);
   const [weeklyPlan, setWeeklyPlan] = React.useState<WeeklyPlan | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -158,6 +160,7 @@ export default function RecipesPage() {
         : { recipeId: item.recipeId, servings: item.servings }
     );
     try {
+      showLoading();
       const response = await fetch("/api/weekly-plan", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -175,6 +178,8 @@ export default function RecipesPage() {
       await fetchData();
     } catch (err) {
       toast.error("Unable to update the plan.");
+    } finally {
+      hideLoading();
     }
   };
 
@@ -186,6 +191,7 @@ export default function RecipesPage() {
     }
     try {
       setImporting(true);
+      showLoading();
       const response = await fetch("/api/recipes/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -205,6 +211,7 @@ export default function RecipesPage() {
       toast.error("Import failed. Check the whitelist first.");
     } finally {
       setImporting(false);
+      hideLoading();
     }
   };
 
@@ -222,6 +229,7 @@ export default function RecipesPage() {
     }
     try {
       setExternalLoading(true);
+      showLoading();
       setExternalError(null);
       const params = new URLSearchParams({
         q: externalQuery.trim(),
@@ -237,12 +245,14 @@ export default function RecipesPage() {
       setExternalError("Unable to search external sites.");
     } finally {
       setExternalLoading(false);
+      hideLoading();
     }
   };
 
   const handleExternalImport = async (url: string) => {
     try {
       setImporting(true);
+      showLoading();
       const response = await fetch("/api/recipes/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -261,6 +271,7 @@ export default function RecipesPage() {
       toast.error("Import failed. Check the whitelist first.");
     } finally {
       setImporting(false);
+      hideLoading();
     }
   };
 

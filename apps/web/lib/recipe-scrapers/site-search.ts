@@ -101,7 +101,8 @@ async function searchFromSitemaps(options: {
       if (!slug) {
         continue;
       }
-      if (!slug.toLowerCase().includes(normalizedQuery)) {
+      const decodedSlug = decodeURIComponent(slug).toLowerCase();
+      if (!decodedSlug.includes(normalizedQuery)) {
         continue;
       }
       results.push({
