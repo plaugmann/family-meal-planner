@@ -1,6 +1,6 @@
 import "./globals.css";
 
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 
 import { LoadingProvider } from "@/components/LoadingOverlay";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
@@ -11,7 +11,6 @@ export const metadata: Metadata = {
   title: "Family Meal Planner",
   description: "Private family meal planning MVP",
   applicationName: "Family Meal Planner",
-  themeColor: "#f8f3ee",
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -25,12 +24,17 @@ export const metadata: Metadata = {
   manifest: "/site.webmanifest",
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#f8f3ee",
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-      </head>
       <body className="font-sans">
         <ThemeProvider>
           <LoadingProvider>
