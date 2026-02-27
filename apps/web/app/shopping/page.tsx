@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ShoppingBasket, Trash2, Edit2, Check, X, Printer, Loader2, RefreshCw } from "lucide-react";
+import { ShoppingBasket, Trash2, Edit2, Check, X, FileDown, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/AppShell";
@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { LoadingSkeleton } from "@/components/LoadingSkeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { generateShoppingListPdf } from "@/lib/pdf";
 import type { ShoppingListItem, WeeklyPlan } from "@/lib/types";
 
 function mergeIngredients(recipes: WeeklyPlan["recipes"]): { name: string; quantity: string | null }[] {
@@ -19,7 +20,6 @@ function mergeIngredients(recipes: WeeklyPlan["recipes"]): { name: string; quant
       const cleaned = line.trim();
       if (!cleaned) continue;
 
-      // Use the full ingredient line as the name
       const key = cleaned.toLowerCase();
       if (!map.has(key)) {
         map.set(key, []);
@@ -29,7 +29,6 @@ function mergeIngredients(recipes: WeeklyPlan["recipes"]): { name: string; quant
   }
 
   return Array.from(map.entries()).map(([_, sources], i) => {
-    // Get the first occurrence's original text
     const allIngredients = recipes.flatMap((r) => r.ingredients);
     const originalLine = allIngredients.find(
       (line) => line.trim().toLowerCase() === Array.from(map.keys())[i]
@@ -156,36 +155,15 @@ export default function ShoppingPage() {
   const uncheckedItems = items.filter((i) => !i.isChecked);
   const checkedItems = items.filter((i) => i.isChecked);
 
-  const handlePrint = () => {
-    const printItems = uncheckedItems
-      .map((item) => `<li>${item.name}${item.quantity ? ` <span style="color:#666">(${item.quantity})</span>` : ""}</li>`)
-      .join("");
-
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
-
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html lang="da">
-      <head>
-        <meta charset="utf-8" />
-        <title>Indkøbsliste</title>
-        <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; }
-          h1 { font-size: 20px; margin-bottom: 16px; }
-          ul { padding-left: 20px; }
-          li { margin-bottom: 8px; font-size: 14px; line-height: 1.5; }
-          li::marker { content: "☐ "; }
-        </style>
-      </head>
-      <body>
-        <h1>Indkøbsliste</h1>
-        <ul>${printItems}</ul>
-      </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
+  const handleDownloadPdf = () => {
+    try {
+      generateShoppingListPdf(
+        uncheckedItems.map((item) => ({ name: item.name, quantity: item.quantity }))
+      );
+      toast.success("PDF downloadet.");
+    } catch {
+      toast.error("Kunne ikke generere PDF.");
+    }
   };
 
   return (
@@ -194,17 +172,16 @@ export default function ShoppingPage() {
       subtitle={items.length > 0 ? `${uncheckedItems.length} af ${items.length} mangler` : undefined}
       actions={
         <div className="flex gap-2">
-          {items.length > 0 && (
-            <Button variant="outline" size="sm" onClick={handlePrint}>
-              <Printer className="mr-2 h-4 w-4" />
-              Print
+          {uncheckedItems.length > 0 && (
+            <Button variant="outline" size="sm" onClick={handleDownloadPdf}>
+              <FileDown className="mr-2 h-4 w-4" />
+              PDF
             </Button>
           )}
         </div>
       }
     >
       <div className="space-y-6">
-        {/* Generate button */}
         <Card>
           <CardContent className="pt-5">
             <div className="flex items-center justify-between">
@@ -236,7 +213,6 @@ export default function ShoppingPage() {
           />
         )}
 
-        {/* Unchecked items */}
         {uncheckedItems.length > 0 && (
           <Card>
             <CardContent className="space-y-3 pt-5">
@@ -302,7 +278,6 @@ export default function ShoppingPage() {
           </Card>
         )}
 
-        {/* Checked items */}
         {checkedItems.length > 0 && (
           <Card>
             <CardContent className="space-y-3 pt-5">

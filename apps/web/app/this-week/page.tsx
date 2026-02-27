@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Plus, Trash2, ChevronDown, ChevronUp, Loader2, ExternalLink, Printer, Baby } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronUp, Loader2, ExternalLink, FileDown, Baby } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/AppShell";
@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { LoadingSkeleton } from "@/components/LoadingSkeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { generateRecipePdf, generateAllRecipesPdf, generateHtmlPdf } from "@/lib/pdf";
 import type { WeeklyPlan, WeeklyPlanRecipe, ParsedRecipe } from "@/lib/types";
 
 export default function ThisWeekPage() {
@@ -18,6 +19,7 @@ export default function ThisWeekPage() {
   const [parsing, setParsing] = React.useState(false);
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
   const [kidsLoading, setKidsLoading] = React.useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = React.useState<string | null>(null);
 
   const fetchPlan = React.useCallback(async () => {
     try {
@@ -126,102 +128,23 @@ export default function ThisWeekPage() {
     toast.success("Opskrift fjernet.");
   };
 
-  const handlePrintRecipe = (recipe: WeeklyPlanRecipe) => {
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
-
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html lang="da">
-      <head>
-        <meta charset="utf-8" />
-        <title>${recipe.title}</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; font-size: 12px; }
-          h1 { font-size: 20px; margin-bottom: 8px; }
-          .meta { color: #666; margin-bottom: 12px; font-size: 11px; }
-          .columns { display: flex; gap: 20px; }
-          .col-ingredients { flex: 0 0 35%; }
-          .col-directions { flex: 1; }
-          h2 { font-size: 14px; margin-bottom: 6px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
-          ul, ol { padding-left: 18px; }
-          li { margin-bottom: 3px; line-height: 1.4; }
-          img { max-width: 200px; max-height: 150px; object-fit: cover; border-radius: 8px; float: right; margin: 0 0 10px 10px; }
-          @media print { body { padding: 10px; } }
-        </style>
-      </head>
-      <body>
-        ${recipe.imageUrl ? `<img src="${recipe.imageUrl}" alt="${recipe.title}" />` : ""}
-        <h1>${recipe.title}</h1>
-        <p class="meta">${recipe.servings} portioner &middot; ${recipe.sourceUrl}</p>
-        <div class="columns">
-          <div class="col-ingredients">
-            <h2>Ingredienser</h2>
-            <ul>${recipe.ingredients.map((i) => `<li>${i}</li>`).join("")}</ul>
-          </div>
-          <div class="col-directions">
-            <h2>Fremgangsmåde</h2>
-            <ol>${recipe.directions.map((d) => `<li>${d}</li>`).join("")}</ol>
-          </div>
-        </div>
-      </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
+  const handleDownloadRecipe = (recipe: WeeklyPlanRecipe) => {
+    try {
+      generateRecipePdf(recipe);
+      toast.success("PDF downloadet.");
+    } catch {
+      toast.error("Kunne ikke generere PDF.");
+    }
   };
 
-  const handlePrintAllRecipes = () => {
+  const handleDownloadAllRecipes = () => {
     if (recipes.length === 0) return;
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
-
-    const recipesHtml = recipes.map((recipe) => `
-      <div class="recipe-page">
-        ${recipe.imageUrl ? `<img src="${recipe.imageUrl}" alt="${recipe.title}" />` : ""}
-        <h1>${recipe.title}</h1>
-        <p class="meta">${recipe.servings} portioner &middot; ${recipe.sourceUrl}</p>
-        <div class="columns">
-          <div class="col-ingredients">
-            <h2>Ingredienser</h2>
-            <ul>${recipe.ingredients.map((i) => `<li>${i}</li>`).join("")}</ul>
-          </div>
-          <div class="col-directions">
-            <h2>Fremgangsmåde</h2>
-            <ol>${recipe.directions.map((d) => `<li>${d}</li>`).join("")}</ol>
-          </div>
-        </div>
-      </div>
-    `).join("");
-
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html lang="da">
-      <head>
-        <meta charset="utf-8" />
-        <title>Ugens opskrifter</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; font-size: 12px; }
-          .recipe-page { page-break-after: always; margin-bottom: 30px; }
-          .recipe-page:last-child { page-break-after: auto; }
-          h1 { font-size: 20px; margin-bottom: 8px; }
-          .meta { color: #666; margin-bottom: 12px; font-size: 11px; }
-          .columns { display: flex; gap: 20px; }
-          .col-ingredients { flex: 0 0 35%; }
-          .col-directions { flex: 1; }
-          h2 { font-size: 14px; margin-bottom: 6px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
-          ul, ol { padding-left: 18px; }
-          li { margin-bottom: 3px; line-height: 1.4; }
-          img { max-width: 200px; max-height: 150px; object-fit: cover; border-radius: 8px; float: right; margin: 0 0 10px 10px; }
-        </style>
-      </head>
-      <body>${recipesHtml}</body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
+    try {
+      generateAllRecipesPdf(recipes);
+      toast.success("PDF downloadet.");
+    } catch {
+      toast.error("Kunne ikke generere PDF.");
+    }
   };
 
   const handleKidsRecipe = async (recipe: WeeklyPlanRecipe) => {
@@ -241,21 +164,11 @@ export default function ThisWeekPage() {
       if (!res.ok) throw new Error("Kunne ikke generere børneopskrift.");
 
       const json = await res.json();
-      const printWindow = window.open("", "_blank");
-      if (!printWindow) return;
-
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html lang="da">
-        <head>
-          <meta charset="utf-8" />
-          <title>${recipe.title} - Børneopskrift</title>
-        </head>
-        <body>${json.html}</body>
-        </html>
-      `);
-      printWindow.document.close();
-      printWindow.print();
+      await generateHtmlPdf(
+        json.html,
+        `${recipe.title.replace(/[^a-zA-Z0-9æøåÆØÅ ]/g, "").trim()} - Børneopskrift.pdf`
+      );
+      toast.success("Børneopskrift PDF downloadet.");
     } catch {
       toast.error("Kunne ikke generere børneopskrift.");
     } finally {
@@ -275,15 +188,14 @@ export default function ThisWeekPage() {
       subtitle={`${recipes.length} opskrift${recipes.length !== 1 ? "er" : ""} denne uge`}
       actions={
         recipes.length > 0 ? (
-          <Button variant="outline" size="sm" onClick={handlePrintAllRecipes}>
-            <Printer className="mr-2 h-4 w-4" />
-            Print alle
+          <Button variant="outline" size="sm" onClick={handleDownloadAllRecipes}>
+            <FileDown className="mr-2 h-4 w-4" />
+            PDF alle
           </Button>
         ) : undefined
       }
     >
       <div className="space-y-6">
-        {/* URL Input */}
         <Card>
           <CardContent className="pt-5">
             <p className="mb-3 text-sm font-medium">Tilføj opskrift fra URL</p>
@@ -314,7 +226,6 @@ export default function ThisWeekPage() {
           />
         )}
 
-        {/* Recipe list */}
         <div className="space-y-4">
           {recipes.map((recipe, index) => {
             const isExpanded = expandedId === recipe.id;
@@ -378,9 +289,9 @@ export default function ThisWeekPage() {
                             Original
                           </a>
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => handlePrintRecipe(recipe)}>
-                          <Printer className="mr-2 h-3 w-3" />
-                          Print
+                        <Button size="sm" variant="outline" onClick={() => handleDownloadRecipe(recipe)}>
+                          <FileDown className="mr-2 h-3 w-3" />
+                          PDF
                         </Button>
                         <Button
                           size="sm"
@@ -393,7 +304,7 @@ export default function ThisWeekPage() {
                           ) : (
                             <Baby className="mr-2 h-3 w-3" />
                           )}
-                          Børneopskrift
+                          Børne-PDF
                         </Button>
                       </div>
                     </div>
