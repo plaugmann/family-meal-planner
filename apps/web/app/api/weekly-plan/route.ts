@@ -3,6 +3,7 @@ import { jsonError, parseJson, getWeekStartUtc } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   const weekStart = getWeekStartUtc(new Date());
