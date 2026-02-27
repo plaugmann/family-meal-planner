@@ -1,84 +1,102 @@
 import { NextResponse } from "next/server";
+import { jsonError, parseJson, getWeekStartUtc } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
-import { getWeekStartUtc, jsonError, parseJson } from "@/lib/api";
-import { requireHousehold } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  const household = await requireHousehold();
-  if (!household) {
-    return jsonError("NOT_ALLOWED", "Authentication required.", 401);
-  }
   const weekStart = getWeekStartUtc(new Date());
 
-  const weeklyPlan = await prisma.weeklyPlan.findFirst({
-    where: { householdId: household.id, weekStart },
-    include: { items: true },
+  const plan = await prisma.weeklyPlan.findUnique({
+    where: { weekStart },
+    include: {
+      recipes: { orderBy: { position: "asc" } },
+    },
   });
 
-  return NextResponse.json({ weeklyPlan });
+  if (!plan) {
+    return NextResponse.json({ weeklyPlan: null });
+  }
+
+  return NextResponse.json({
+    weeklyPlan: {
+      id: plan.id,
+      weekStart: plan.weekStart.toISOString(),
+      recipes: plan.recipes.map((r) => ({
+        id: r.id,
+        title: r.title,
+        imageUrl: r.imageUrl,
+        sourceUrl: r.sourceUrl,
+        servings: r.servings,
+        ingredients: JSON.parse(r.ingredients),
+        directions: JSON.parse(r.directions),
+        position: r.position,
+      })),
+    },
+  });
 }
 
+type RecipeInput = {
+  title: string;
+  imageUrl?: string | null;
+  sourceUrl: string;
+  servings?: number;
+  ingredients: string[];
+  directions: string[];
+};
+
 export async function PUT(request: Request) {
-  const household = await requireHousehold();
-  if (!household) {
-    return jsonError("NOT_ALLOWED", "Authentication required.", 401);
-  }
-  const payload = await parseJson<{
-    weekStart?: string;
-    items?: { recipeId: string; servings?: number }[];
-  }>(request);
-
-  if (!payload?.weekStart || !payload.items) {
-    return jsonError("VALIDATION_ERROR", "weekStart and items are required.", 400);
+  const payload = await parseJson<{ recipes: RecipeInput[] }>(request);
+  if (!payload?.recipes || !Array.isArray(payload.recipes)) {
+    return jsonError("VALIDATION_ERROR", "Recipes array is required.", 400);
   }
 
-  const items = payload.items;
-
-  if (items.length !== 3) {
-    return jsonError("VALIDATION_ERROR", "Exactly 3 items are required.", 400);
+  if (payload.recipes.length > 5) {
+    return jsonError("VALIDATION_ERROR", "Maximum 5 recipes per week.", 400);
   }
 
-  const uniqueRecipeIds = new Set(items.map((item) => item.recipeId));
-  if (uniqueRecipeIds.size !== 3) {
-    return jsonError("VALIDATION_ERROR", "Recipes must be unique.", 400);
-  }
+  const weekStart = getWeekStartUtc(new Date());
 
-  const weekStart = new Date(payload.weekStart);
-  if (Number.isNaN(weekStart.getTime())) {
-    return jsonError("VALIDATION_ERROR", "weekStart must be a valid ISO date.", 400);
-  }
+  const plan = await prisma.$transaction(async (tx) => {
+    await tx.weeklyPlan.deleteMany({ where: { weekStart } });
 
-  const recipes = await prisma.recipe.findMany({
-    where: { householdId: household.id, id: { in: Array.from(uniqueRecipeIds) } },
-  });
-
-  if (recipes.length !== 3) {
-    return jsonError("NOT_FOUND", "One or more recipes not found.", 404);
-  }
-
-  const weeklyPlan = await prisma.$transaction(async (tx) => {
-    const plan = await tx.weeklyPlan.upsert({
-      where: { householdId_weekStart: { householdId: household.id, weekStart } },
-      update: {},
-      create: { householdId: household.id, weekStart },
+    const created = await tx.weeklyPlan.create({
+      data: {
+        weekStart,
+        recipes: {
+          create: payload.recipes.map((r, i) => ({
+            title: r.title,
+            imageUrl: r.imageUrl ?? null,
+            sourceUrl: r.sourceUrl,
+            servings: r.servings ?? 4,
+            ingredients: JSON.stringify(r.ingredients),
+            directions: JSON.stringify(r.directions),
+            position: i,
+          })),
+        },
+      },
+      include: {
+        recipes: { orderBy: { position: "asc" } },
+      },
     });
 
-    await tx.weeklyPlanItem.deleteMany({ where: { weeklyPlanId: plan.id } });
-      await tx.weeklyPlanItem.createMany({
-        data: items.map((item) => ({
-          weeklyPlanId: plan.id,
-          recipeId: item.recipeId,
-          servings: item.servings ?? 4,
-        })),
-      });
-
-    return tx.weeklyPlan.findUnique({
-      where: { id: plan.id },
-      include: { items: true },
-    });
+    return created;
   });
 
-  return NextResponse.json({ weeklyPlan });
+  return NextResponse.json({
+    weeklyPlan: {
+      id: plan.id,
+      weekStart: plan.weekStart.toISOString(),
+      recipes: plan.recipes.map((r) => ({
+        id: r.id,
+        title: r.title,
+        imageUrl: r.imageUrl,
+        sourceUrl: r.sourceUrl,
+        servings: r.servings,
+        ingredients: JSON.parse(r.ingredients),
+        directions: JSON.parse(r.directions),
+        position: r.position,
+      })),
+    },
+  });
 }

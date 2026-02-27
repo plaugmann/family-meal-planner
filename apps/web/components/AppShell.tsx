@@ -1,11 +1,8 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
-import { Settings } from "lucide-react";
 
 import { BottomNav } from "@/components/BottomNav";
-import { LogoutButton } from "@/components/LogoutButton";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
@@ -29,14 +26,6 @@ export function AppShell({ title, subtitle, actions, children }: AppShellProps) 
           </div>
           <div className={cn("flex items-center gap-2", actions ? "pl-2" : "")}>
             {actions}
-            <LogoutButton />
-            <Link
-              href="/settings/whitelist"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition hover:text-foreground"
-              aria-label="Open settings"
-            >
-              <Settings className="h-4 w-4" />
-            </Link>
             <ThemeToggle />
           </div>
         </div>

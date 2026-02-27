@@ -1,132 +1,133 @@
 "use client";
 
 import * as React from "react";
-import { CheckCircle2, Copy, ShoppingBasket, Trash2, Edit2, Check, X } from "lucide-react";
+import { ShoppingBasket, Trash2, Edit2, Check, X, Printer, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/AppShell";
 import { EmptyState } from "@/components/EmptyState";
-import { ErrorState } from "@/components/ErrorState";
 import { LoadingSkeleton } from "@/components/LoadingSkeleton";
-import { SectionHeader } from "@/components/SectionHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import type { ShoppingListItem, WeeklyPlan } from "@/lib/types";
 
-type ShoppingList = {
-  weeklyPlanId: string;
-  items: ShoppingListItem[];
-};
+function mergeIngredients(recipes: WeeklyPlan["recipes"]): { name: string; quantity: string | null }[] {
+  const map = new Map<string, string[]>();
 
-const categoryLabels: Record<ShoppingListItem["category"], string> = {
-  PRODUCE: "Produce",
-  DAIRY: "Dairy",
-  MEAT_FISH: "Meat & Fish",
-  PANTRY: "Pantry",
-  FROZEN: "Frozen",
-  OTHER: "Other",
-};
+  for (const recipe of recipes) {
+    for (const line of recipe.ingredients) {
+      const cleaned = line.trim();
+      if (!cleaned) continue;
+
+      // Use the full ingredient line as the name
+      const key = cleaned.toLowerCase();
+      if (!map.has(key)) {
+        map.set(key, []);
+      }
+      map.get(key)!.push(recipe.title);
+    }
+  }
+
+  return Array.from(map.entries()).map(([_, sources], i) => {
+    // Get the first occurrence's original text
+    const allIngredients = recipes.flatMap((r) => r.ingredients);
+    const originalLine = allIngredients.find(
+      (line) => line.trim().toLowerCase() === Array.from(map.keys())[i]
+    ) ?? Array.from(map.keys())[i];
+
+    return {
+      name: originalLine,
+      quantity: sources.length > 1 ? `Bruges i: ${sources.join(", ")}` : null,
+    };
+  });
+}
 
 export default function ShoppingPage() {
-  const [weeklyPlan, setWeeklyPlan] = React.useState<WeeklyPlan | null>(null);
-  const [shoppingList, setShoppingList] = React.useState<ShoppingList | null>(null);
+  const [plan, setPlan] = React.useState<WeeklyPlan | null>(null);
+  const [items, setItems] = React.useState<ShoppingListItem[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
-  const [onlyUnbought, setOnlyUnbought] = React.useState(true);
+  const [generating, setGenerating] = React.useState(false);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [editName, setEditName] = React.useState("");
   const [editQuantity, setEditQuantity] = React.useState("");
 
-  const fetchPlan = React.useCallback(async () => {
-    const planRes = await fetch("/api/weekly-plan");
-    const planJson = await planRes.json();
-    setWeeklyPlan(planJson.weeklyPlan ?? null);
-  }, []);
-
-  const generateShoppingList = React.useCallback(async () => {
+  const fetchData = React.useCallback(async () => {
     try {
       setLoading(true);
-      setError(null);
-      await fetchPlan();
-      const response = await fetch("/api/shopping-list/generate", { method: "POST" });
-      if (!response.ok) {
-        if (response.status === 409) {
-          setShoppingList(null);
-          return;
-        }
-        const json = await response.json();
-        throw new Error(json?.error?.message ?? "Unable to generate list.");
-      }
-      const json = await response.json();
-      setShoppingList(json.shoppingList ?? null);
-    } catch (err) {
-      setError("We couldn't generate your shopping list.");
+      const [planRes, listRes] = await Promise.all([
+        fetch("/api/weekly-plan"),
+        fetch("/api/shopping-list"),
+      ]);
+      const planJson = await planRes.json();
+      const listJson = await listRes.json();
+      setPlan(planJson.weeklyPlan ?? null);
+      setItems(listJson.items ?? []);
+    } catch {
+      toast.error("Kunne ikke hente data.");
     } finally {
       setLoading(false);
     }
-  }, [fetchPlan]);
+  }, []);
 
   React.useEffect(() => {
-    generateShoppingList();
-  }, [generateShoppingList]);
+    fetchData();
+  }, [fetchData]);
 
-  const handleToggleBought = async (item: ShoppingListItem) => {
+  const generateList = async () => {
+    if (!plan || plan.recipes.length === 0) {
+      toast.error("Tilføj opskrifter til ugeplanen først.");
+      return;
+    }
+
+    setGenerating(true);
     try {
-      const response = await fetch(`/api/shopping-list/items/${item.id}`, {
-        method: "PATCH",
+      const merged = mergeIngredients(plan.recipes);
+      const res = await fetch("/api/shopping-list", {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isBought: !item.isBought }),
+        body: JSON.stringify({ weeklyPlanId: plan.id, items: merged }),
       });
-      if (!response.ok) {
-        throw new Error("Failed to update item.");
-      }
-      const json = await response.json();
-      const updatedItem = json.item as ShoppingListItem;
-      setShoppingList((prev) =>
-        prev
-          ? {
-              ...prev,
-              items: prev.items.map((existing) =>
-                existing.id === updatedItem.id ? updatedItem : existing
-              ),
-            }
-          : prev
-      );
-      if (!item.isBought) {
-        toast.success("Added to inventory.");
-      }
-    } catch (err) {
-      toast.error("Unable to update this item.");
+      if (!res.ok) throw new Error();
+      const json = await res.json();
+      setItems(json.items ?? []);
+      toast.success("Indkøbsliste genereret!");
+    } catch {
+      toast.error("Kunne ikke generere indkøbsliste.");
+    } finally {
+      setGenerating(false);
     }
   };
 
-  const handleDeleteItem = async (item: ShoppingListItem) => {
+  const handleToggleChecked = async (item: ShoppingListItem) => {
     try {
-      const response = await fetch(`/api/shopping-list/items/${item.id}`, {
-        method: "DELETE",
+      const res = await fetch(`/api/shopping-list/items/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isChecked: !item.isChecked }),
       });
-      if (!response.ok) {
-        throw new Error("Failed to delete item.");
-      }
-      setShoppingList((prev) =>
-        prev
-          ? {
-              ...prev,
-              items: prev.items.filter((existing) => existing.id !== item.id),
-            }
-          : prev
-      );
-      toast.success("Item removed.");
-    } catch (err) {
-      toast.error("Unable to delete this item.");
+      if (!res.ok) throw new Error();
+      const json = await res.json();
+      setItems((prev) => prev.map((i) => (i.id === json.item.id ? json.item : i)));
+    } catch {
+      toast.error("Kunne ikke opdatere.");
+    }
+  };
+
+  const handleDelete = async (item: ShoppingListItem) => {
+    try {
+      const res = await fetch(`/api/shopping-list/items/${item.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      setItems((prev) => prev.filter((i) => i.id !== item.id));
+      toast.success("Fjernet fra listen.");
+    } catch {
+      toast.error("Kunne ikke fjerne.");
     }
   };
 
   const handleStartEdit = (item: ShoppingListItem) => {
     setEditingId(item.id);
     setEditName(item.name);
-    setEditQuantity(item.quantityText || "");
+    setEditQuantity(item.quantity || "");
   };
 
   const handleCancelEdit = () => {
@@ -137,282 +138,194 @@ export default function ShoppingPage() {
 
   const handleSaveEdit = async (item: ShoppingListItem) => {
     try {
-      const response = await fetch(`/api/shopping-list/items/${item.id}`, {
+      const res = await fetch(`/api/shopping-list/items/${item.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          name: editName.trim(), 
-          quantityText: editQuantity.trim() || null 
-        }),
+        body: JSON.stringify({ name: editName.trim(), quantity: editQuantity.trim() || null }),
       });
-      if (!response.ok) {
-        throw new Error("Failed to update item.");
-      }
-      const json = await response.json();
-      const updatedItem = json.item as ShoppingListItem;
-      setShoppingList((prev) =>
-        prev
-          ? {
-              ...prev,
-              items: prev.items.map((existing) =>
-                existing.id === updatedItem.id ? updatedItem : existing
-              ),
-            }
-          : prev
-      );
-      toast.success("Item updated.");
+      if (!res.ok) throw new Error();
+      const json = await res.json();
+      setItems((prev) => prev.map((i) => (i.id === json.item.id ? json.item : i)));
+      toast.success("Opdateret.");
       handleCancelEdit();
-    } catch (err) {
-      toast.error("Unable to update this item.");
+    } catch {
+      toast.error("Kunne ikke opdatere.");
     }
   };
 
-  const grouped = React.useMemo(() => {
-    if (!shoppingList) {
-      return [];
-    }
-    const items = onlyUnbought
-      ? shoppingList.items.filter((item) => !item.isBought)
-      : shoppingList.items;
-    const map = new Map<ShoppingListItem["category"], ShoppingListItem[]>();
-    for (const item of items) {
-      if (!map.has(item.category)) {
-        map.set(item.category, []);
-      }
-      map.get(item.category)?.push(item);
-    }
-    return Array.from(map.entries());
-  }, [shoppingList, onlyUnbought]);
+  const uncheckedItems = items.filter((i) => !i.isChecked);
+  const checkedItems = items.filter((i) => i.isChecked);
 
-  const handleCopy = async () => {
-    if (!shoppingList) {
-      return;
-    }
-    const lines = shoppingList.items
-      .filter((item) => !item.isBought)
-      .map((item) => `${item.name}${item.quantityText ? ` (${item.quantityText})` : ""}`);
-    try {
-      await navigator.clipboard.writeText(lines.join("\n"));
-      toast.success("Copied unbought items.");
-    } catch (err) {
-      toast.error("Unable to copy list.");
-    }
-  };
+  const handlePrint = () => {
+    const printItems = uncheckedItems
+      .map((item) => `<li>${item.name}${item.quantity ? ` <span style="color:#666">(${item.quantity})</span>` : ""}</li>`)
+      .join("");
 
-  const handleExportToAlexa = async () => {
-    if (!shoppingList) {
-      return;
-    }
-    const lines = shoppingList.items
-      .filter((item) => !item.isBought)
-      .map((item) => item.name);
-    
-    // Create Alexa-compatible format (comma-separated list)
-    const alexaFormat = lines.join(", ");
-    
-    try {
-      await navigator.clipboard.writeText(alexaFormat);
-      toast.success("Copied in Alexa format! Say: 'Alexa, add to my shopping list' then paste each item.", {
-        duration: 5000,
-      });
-    } catch (err) {
-      toast.error("Unable to copy list.");
-    }
-  };
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
 
-  const handleEmailToAlexa = () => {
-    if (!shoppingList) {
-      return;
-    }
-
-    const items = shoppingList.items
-      .filter((item) => !item.isBought)
-      .map((item) => `- ${item.name}${item.quantityText ? ` (${item.quantityText})` : ""}`)
-      .join("\n");
-
-    if (items.length === 0) {
-      toast.error("No items to send!");
-      return;
-    }
-
-    // Create email with shopping list
-    const subject = encodeURIComponent("Shopping List from Meal Planner");
-    const body = encodeURIComponent(
-      `Here's my shopping list:\n\n${items}\n\nYou can add these to Alexa by saying: "Alexa, add [item] to my shopping list"`
-    );
-    
-    window.location.href = `mailto:?subject=${subject}&body=${body}`;
-    
-    toast.success("Email opened! Send to yourself and add items to Alexa manually.", {
-      duration: 6000,
-    });
-  };
-
-  const handleShareableLink = async () => {
-    const url = `${window.location.origin}/shopping/share/${shoppingList?.weeklyPlanId}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.success("Shareable link copied! Open on any device to view your list.", {
-        duration: 5000,
-      });
-    } catch (err) {
-      toast.error("Unable to copy link.");
-    }
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html lang="da">
+      <head>
+        <meta charset="utf-8" />
+        <title>Indkøbsliste</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; }
+          h1 { font-size: 20px; margin-bottom: 16px; }
+          ul { padding-left: 20px; }
+          li { margin-bottom: 8px; font-size: 14px; line-height: 1.5; }
+          li::marker { content: "☐ "; }
+        </style>
+      </head>
+      <body>
+        <h1>Indkøbsliste</h1>
+        <ul>${printItems}</ul>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
   };
 
   return (
-    <AppShell title="Shopping" subtitle="Everything you need for the week.">
+    <AppShell
+      title="Indkøbsliste"
+      subtitle={items.length > 0 ? `${uncheckedItems.length} af ${items.length} mangler` : undefined}
+      actions={
+        <div className="flex gap-2">
+          {items.length > 0 && (
+            <Button variant="outline" size="sm" onClick={handlePrint}>
+              <Printer className="mr-2 h-4 w-4" />
+              Print
+            </Button>
+          )}
+        </div>
+      }
+    >
       <div className="space-y-6">
-        <SectionHeader
-          title="Shopping list"
-          subtitle="Generated from your three dinners."
-          actions={
-            <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" onClick={generateShoppingList}>
-                Regenerate
-              </Button>
-              <Button variant="outline" onClick={handleCopy}>
-                <Copy className="mr-2 h-4 w-4" />
-                Copy list
-              </Button>
-              <Button variant="outline" onClick={handleExportToAlexa}>
-                <Copy className="mr-2 h-4 w-4" />
-                Copy List
-              </Button>
-              <Button variant="outline" onClick={handleEmailToAlexa}>
-                <ShoppingBasket className="mr-2 h-4 w-4" />
-                Email List
+        {/* Generate button */}
+        <Card>
+          <CardContent className="pt-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Generer indkøbsliste</p>
+                <p className="text-xs text-muted-foreground">
+                  Samler ingredienser fra ugens opskrifter.
+                </p>
+              </div>
+              <Button onClick={generateList} disabled={generating || !plan}>
+                {generating ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                )}
+                {items.length > 0 ? "Generer ny" : "Generer"}
               </Button>
             </div>
-          }
-        />
+          </CardContent>
+        </Card>
 
-        <div className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3">
-          <div>
-            <p className="text-sm font-medium">Show only unbought</p>
-            <p className="text-xs text-muted-foreground">Keep the list tidy while shopping.</p>
-          </div>
-          <Button
-            variant={onlyUnbought ? "default" : "outline"}
-            onClick={() => setOnlyUnbought((prev) => !prev)}
-          >
-            {onlyUnbought ? "On" : "Off"}
-          </Button>
-        </div>
+        {loading && <LoadingSkeleton count={3} />}
 
-        {loading ? <LoadingSkeleton count={3} /> : null}
-        {error ? <ErrorState title="Shopping list unavailable" description={error} /> : null}
-
-        {!loading && !error && (!weeklyPlan || weeklyPlan.items.length !== 3) ? (
+        {!loading && items.length === 0 && (
           <EmptyState
-            title="Plan three dinners first"
-            description="Your shopping list appears after selecting three meals."
+            title="Ingen indkøbsliste endnu"
+            description="Tilføj opskrifter til ugeplanen og generer en indkøbsliste."
             icon={<ShoppingBasket className="h-6 w-6" />}
-            action={
-              <Button asChild>
-                <a href="/this-week">Go to this week</a>
-              </Button>
-            }
           />
-        ) : null}
+        )}
 
-        {!loading && !error && shoppingList && grouped.length === 0 ? (
-          <EmptyState
-            title="All items bought"
-            description="You're all set for this week."
-            icon={<CheckCircle2 className="h-6 w-6" />}
-          />
-        ) : null}
-
-        <div className="space-y-4">
-          {grouped.map(([category, items]) => (
-            <Card key={category}>
-              <CardContent className="space-y-3 pt-5">
-                <p className="text-sm font-semibold text-muted-foreground">
-                  {categoryLabels[category]}
-                </p>
-                <Separator />
-                <div className="space-y-3">
-                  {items.map((item) => (
-                    <div key={item.id} className="flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                        checked={item.isBought}
-                        onChange={() => handleToggleBought(item)}
-                      />
-                      <div className="flex-1">
-                        {editingId === item.id ? (
-                          <div className="space-y-2">
-                            <input
-                              type="text"
-                              className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
-                              value={editName}
-                              onChange={(e) => setEditName(e.target.value)}
-                              placeholder="Item name"
-                            />
-                            <input
-                              type="text"
-                              className="w-full rounded border border-border bg-background px-2 py-1 text-xs"
-                              value={editQuantity}
-                              onChange={(e) => setEditQuantity(e.target.value)}
-                              placeholder="Quantity (optional)"
-                            />
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="default"
-                                onClick={() => handleSaveEdit(item)}
-                              >
-                                <Check className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={handleCancelEdit}
-                              >
-                                <X className="h-3 w-3" />
-                              </Button>
-                            </div>
+        {/* Unchecked items */}
+        {uncheckedItems.length > 0 && (
+          <Card>
+            <CardContent className="space-y-3 pt-5">
+              <p className="text-sm font-semibold text-muted-foreground">Mangler</p>
+              <div className="space-y-3">
+                {uncheckedItems.map((item) => (
+                  <div key={item.id} className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                      checked={false}
+                      onChange={() => handleToggleChecked(item)}
+                    />
+                    <div className="flex-1">
+                      {editingId === item.id ? (
+                        <div className="space-y-2">
+                          <input
+                            type="text"
+                            className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            placeholder="Ingrediens"
+                          />
+                          <input
+                            type="text"
+                            className="w-full rounded border border-border bg-background px-2 py-1 text-xs"
+                            value={editQuantity}
+                            onChange={(e) => setEditQuantity(e.target.value)}
+                            placeholder="Mængde (valgfrit)"
+                          />
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={() => handleSaveEdit(item)}>
+                              <Check className="h-3 w-3" />
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={handleCancelEdit}>
+                              <X className="h-3 w-3" />
+                            </Button>
                           </div>
-                        ) : (
-                          <>
-                            <p className={item.isBought ? "line-through text-muted-foreground" : ""}>
-                              {item.name}
-                            </p>
-                            {item.quantityText ? (
-                              <p className="text-xs text-muted-foreground">
-                                Suggested pack: {item.quantityText}
-                              </p>
-                            ) : null}
-                          </>
-                        )}
-                      </div>
-                      {editingId !== item.id && (
-                        <div className="flex gap-1">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleStartEdit(item)}
-                          >
-                            <Edit2 className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleDeleteItem(item)}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
                         </div>
+                      ) : (
+                        <>
+                          <p className="text-sm">{item.name}</p>
+                          {item.quantity && (
+                            <p className="text-xs text-muted-foreground">{item.quantity}</p>
+                          )}
+                        </>
                       )}
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                    {editingId !== item.id && (
+                      <div className="flex gap-1 shrink-0">
+                        <Button size="sm" variant="ghost" onClick={() => handleStartEdit(item)}>
+                          <Edit2 className="h-3 w-3" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => handleDelete(item)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Checked items */}
+        {checkedItems.length > 0 && (
+          <Card>
+            <CardContent className="space-y-3 pt-5">
+              <p className="text-sm font-semibold text-muted-foreground">Har allerede</p>
+              <div className="space-y-3">
+                {checkedItems.map((item) => (
+                  <div key={item.id} className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                      checked={true}
+                      onChange={() => handleToggleChecked(item)}
+                    />
+                    <p className="flex-1 text-sm line-through text-muted-foreground">{item.name}</p>
+                    <Button size="sm" variant="ghost" onClick={() => handleDelete(item)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </AppShell>
   );

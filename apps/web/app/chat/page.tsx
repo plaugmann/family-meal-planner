@@ -16,11 +16,11 @@ type Message = {
 };
 
 const SUGGESTED_PROMPTS = [
-  "Suggest 3 quick weeknight dinners",
-  "What can I make with chicken and rice?",
-  "Give me vegetarian dinner ideas",
-  "Easy pasta recipes for kids",
-  "Healthy family dinner recipes",
+  "Foreslå 3 nemme hverdagsmiddage",
+  "Hvad kan jeg lave med kylling og ris?",
+  "Giv mig vegetariske middagsideer",
+  "Nemme pastaretter til børn",
+  "Sunde familiemiddage",
 ];
 
 export default function ChatPage() {
@@ -56,16 +56,14 @@ export default function ChatPage() {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to get response");
-      }
+      if (!response.ok) throw new Error();
 
       const data = await response.json();
       const aiMessage: Message = { role: "assistant", content: data.message };
       setMessages((prev) => [...prev, aiMessage]);
-    } catch (error) {
-      toast.error("Unable to get response from AI Chef. Please try again.");
-      setMessages((prev) => prev.slice(0, -1)); // Remove user message on error
+    } catch {
+      toast.error("Kunne ikke få svar fra AI Chef. Prøv igen.");
+      setMessages((prev) => prev.slice(0, -1));
     } finally {
       setLoading(false);
     }
@@ -77,12 +75,8 @@ export default function ChatPage() {
   };
 
   return (
-    <AppShell
-      title="AI Chef"
-      subtitle="Get personalized recipe suggestions"
-    >
+    <AppShell title="AI Chef" subtitle="Få personlige opskriftsforslag">
       <div className="flex h-[calc(100vh-16rem)] flex-col">
-        {/* Messages */}
         <div className="flex-1 space-y-4 overflow-y-auto pb-4">
           {messages.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center space-y-6">
@@ -90,13 +84,13 @@ export default function ChatPage() {
                 <Bot className="h-12 w-12 text-primary" />
               </div>
               <div className="text-center">
-                <h2 className="mb-2 text-xl font-semibold">Ask AI Chef for Recipe Ideas!</h2>
+                <h2 className="mb-2 text-xl font-semibold">Spørg AI Chef om opskriftsideer!</h2>
                 <p className="text-sm text-muted-foreground">
-                  Get personalized dinner suggestions for your family
+                  Få personlige middagsforslag til din familie
                 </p>
               </div>
               <div className="w-full max-w-md space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">Try asking:</p>
+                <p className="text-xs font-medium text-muted-foreground">Prøv at spørge:</p>
                 {SUGGESTED_PROMPTS.map((prompt) => (
                   <button
                     key={prompt}
@@ -163,13 +157,12 @@ export default function ChatPage() {
           )}
         </div>
 
-        {/* Input */}
         <form onSubmit={handleSubmit} className="flex gap-2">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask for recipe ideas..."
+            placeholder="Spørg om opskriftsideer..."
             className="flex-1 rounded-lg border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             disabled={loading}
           />

@@ -1,15 +1,9 @@
 import { NextResponse } from "next/server";
 import { jsonError, parseJson } from "@/lib/api";
-import { requireHousehold } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const household = await requireHousehold();
-  if (!household) {
-    return jsonError("NOT_ALLOWED", "Authentication required.", 401);
-  }
-
   const payload = await parseJson<{ message: string; conversationHistory?: Array<{ role: string; content: string }> }>(request);
   if (!payload?.message) {
     return jsonError("VALIDATION_ERROR", "Message is required.", 400);
@@ -17,29 +11,27 @@ export async function POST(request: Request) {
 
   const openaiKey = process.env.OPENAI_API_KEY;
   if (!openaiKey) {
-    return jsonError("NOT_ALLOWED", "OpenAI API key not configured.", 500);
+    return jsonError("IMPORT_FAILED", "OpenAI API key not configured.", 500);
   }
 
   try {
     const messages = [
       {
         role: "system",
-        content: `You are a helpful cooking assistant for a family meal planning app. Your role is to:
-- Suggest family-friendly dinner recipes (suitable for 2 adults and 2 children)
-- Provide recipe ideas based on ingredients, dietary preferences, or themes
-- Keep recipes simple and practical for weeknight dinners
-- Suggest recipes that minimize food waste
-- Recommend only 3 dinner recipes per week as per the app's design
-- Be concise and friendly
+        content: `Du er en hjælpsom madassistent for en familiemadplanlægger-app. Din rolle er at:
+- Foreslå familievenlige middagsopskrifter (passende til 2 voksne og 2 børn)
+- Give opskriftsideer baseret på ingredienser, diætpræferencer eller temaer
+- Holde opskrifter simple og praktiske til hverdagsmiddage
+- Foreslå opskrifter der minimerer madspild
+- Være kortfattet og venlig
+- Svare på dansk
 
-When suggesting recipes, include:
-- Recipe name
-- Brief description
-- Main ingredients
-- Approximate cooking time
-- Why it's family-friendly
-
-Do not suggest breakfast, lunch, or dessert recipes unless specifically asked.`,
+Når du foreslår opskrifter, inkluder:
+- Opskriftsnavn
+- Kort beskrivelse
+- Hovedingredienser
+- Cirka tilberedningstid
+- Hvorfor den er familievenlig`,
       },
       ...(payload.conversationHistory || []),
       {
@@ -64,18 +56,16 @@ Do not suggest breakfast, lunch, or dessert recipes unless specifically asked.`,
 
     if (!response.ok) {
       const error = await response.json();
-      console.error("OpenAI API error:", error);
       return NextResponse.json({
         error: {
           code: "IMPORT_FAILED",
           message: `OpenAI API error: ${error.error?.message || response.statusText}`,
-          details: error,
         },
       }, { status: response.status });
     }
 
     const data = await response.json();
-    const aiMessage = data.choices[0]?.message?.content || "Sorry, I couldn't generate a response.";
+    const aiMessage = data.choices[0]?.message?.content || "Beklager, jeg kunne ikke generere et svar.";
 
     return NextResponse.json({
       message: aiMessage,
@@ -86,7 +76,6 @@ Do not suggest breakfast, lunch, or dessert recipes unless specifically asked.`,
       ],
     });
   } catch (error) {
-    console.error("Chat API error:", error);
     return jsonError("IMPORT_FAILED", "Unable to process your request.", 500);
   }
 }
