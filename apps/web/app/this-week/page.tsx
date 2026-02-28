@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { LoadingSkeleton } from "@/components/LoadingSkeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { generateRecipePdf, generateAllRecipesPdf, generateHtmlPdf } from "@/lib/pdf";
+import { generateRecipePdf, generateAllRecipesPdf, generateImagePdf } from "@/lib/pdf";
 import type { WeeklyPlan, WeeklyPlanRecipe, ParsedRecipe } from "@/lib/types";
 
 export default function ThisWeekPage() {
@@ -164,8 +164,9 @@ export default function ThisWeekPage() {
       if (!res.ok) throw new Error("Kunne ikke generere børneopskrift.");
 
       const json = await res.json();
-      await generateHtmlPdf(
-        json.html,
+      if (!json.imageUrl) throw new Error("Intet billede returneret.");
+      await generateImagePdf(
+        json.imageUrl,
         `${recipe.title.replace(/[^a-zA-Z0-9æøåÆØÅ ]/g, "").trim()} - Børneopskrift.pdf`
       );
       toast.success("Børneopskrift PDF downloadet.");

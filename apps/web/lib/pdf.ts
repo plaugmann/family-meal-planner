@@ -171,25 +171,28 @@ export function generateShoppingListPdf(
   doc.save("Indkøbsliste.pdf");
 }
 
-export async function generateHtmlPdf(html: string, filename: string): Promise<void> {
-  const html2pdf = (await import("html2pdf.js")).default;
-  const container = document.createElement("div");
-  container.innerHTML = html;
-  container.style.width = "800px";
-  document.body.appendChild(container);
+export async function generateImagePdf(imageUrl: string, filename: string): Promise<void> {
+  const response = await fetch(imageUrl);
+  const blob = await response.blob();
 
-  try {
-    await html2pdf()
-      .set({
-        margin: 10,
-        filename,
-        image: { type: "jpeg", quality: 0.95 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      })
-      .from(container)
-      .save();
-  } finally {
-    document.body.removeChild(container);
-  }
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const dataUrl = reader.result as string;
+        const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+
+        const imgWidth = PAGE_WIDTH;
+        const imgHeight = PAGE_HEIGHT;
+
+        doc.addImage(dataUrl, "PNG", 0, 0, imgWidth, imgHeight);
+        doc.save(filename);
+        resolve();
+      } catch (err) {
+        reject(err);
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }

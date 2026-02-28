@@ -10,6 +10,71 @@ type KidsRecipePayload = {
   servings: number;
 };
 
+function buildDallePrompt(payload: KidsRecipePayload): string {
+  const recipeContent = `
+Titel: ${payload.title}
+Portioner: ${payload.servings}
+Ingredienser: ${payload.ingredients.join(", ")}
+Fremgangsmåde: ${payload.directions.map((d, i) => `${i + 1}. ${d}`).join(" ")}
+`.trim();
+
+  return `Create a vertical A4 children's recipe infographic poster in Danish.
+STYLE:
+• Digital hand-drawn illustration
+• Cute Scandinavian children's cookbook style
+• Warm, soft, cozy colors
+• Light beige textured background with small decorative dots
+• Bright accent colors (green, orange, yellow, blue)
+• Soft shadows and slightly rounded shapes
+• No photos – illustration only
+• High resolution
+• Clear readable Danish text integrated into the design
+TARGET GROUP:
+Children age 4–9
+LAYOUT (IMPORTANT – follow strictly):
+TOP SECTION:
+• Large playful hand-drawn title in Danish
+• Smaller friendly subtitle underneath
+• "(${payload.servings} portioner)" displayed clearly
+• Add a cute illustrated character (for example a smiling lemon or vegetable with eyes)
+LEFT COLUMN:
+Header: "DU SKAL BRUGE:"
+• Show ingredients as cute illustrated drawings (not realistic photos)
+• Each ingredient clearly labeled in Danish with quantity
+• Arrange neatly with spacing
+• Use bowls, jars, bundles etc. to make it visual
+RIGHT COLUMN:
+Header: "SÅDAN GØR DU:"
+• 3–4 clearly separated step boxes
+• Each step has:
+• Large red number inside a circle
+• Very short, simple Danish instruction
+• Matching illustration showing the action (stirring, pouring water, adding herbs etc.)
+• Child-friendly language
+• Big readable letters
+BOTTOM SECTION:
+Header: "SERVER MED:"
+• Small illustrated toppings
+• A green "Tip:" box
+• Large cheerful "Velbekomme!" text
+TEXT RULES:
+• All text must be in Danish
+• Short simple sentences
+• Large readable lettering
+• No extra English text
+• No markdown
+• No UI elements
+• No website layout
+• No HTML
+• Everything must look like one finished printed poster
+VISUAL MOOD:
+Fun, friendly, colorful, modern children's cookbook illustration.
+RECIPE CONTENT:
+${recipeContent}
+OUTPUT:
+One single complete illustrated infographic poster.`;
+}
+
 export async function POST(request: Request) {
   const payload = await parseJson<KidsRecipePayload>(request);
   if (!payload?.title || !payload?.ingredients || !payload?.directions) {
@@ -22,45 +87,21 @@ export async function POST(request: Request) {
   }
 
   try {
-    const prompt = `Lav en børnevenlig infografik-opskrift på dansk baseret på følgende opskrift. 
-Infografikken skal være designet så børn i alderen 4-9 år kan følge den.
+    const prompt = buildDallePrompt(payload);
 
-Regler:
-- Brug simple, korte sætninger
-- Brug emoji-ikoner til hvert trin (f.eks. 🥄 for rør, 🔥 for opvarm, ❄️ for køl ned, ✂️ for skær)
-- Nummerer trinene tydeligt
-- Forenkl ingredienslisten med emoji-ikoner
-- Brug farverige HTML med inline styles der er klar til print
-- Designet skal være sjovt og indbydende for børn
-- Brug store skrifttyper og tydelig kontrast
-- Alt skal være på DANSK
-- Output KUN HTML (ingen markdown, ingen code blocks)
-- HTML'en skal have max-width: 800px og være centreret
-- Inkluder opskriftens titel som overskrift med sjov styling
-
-Opskrift: ${payload.title}
-Portioner: ${payload.servings}
-
-Ingredienser:
-${payload.ingredients.join("\n")}
-
-Fremgangsmåde:
-${payload.directions.join("\n")}`;
-
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/images/generations", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${openaiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: "Du er en kreativ designer der laver børnevenlige kogeinfografikker i HTML. Output KUN ren HTML med inline styles." },
-          { role: "user", content: prompt },
-        ],
-        temperature: 0.8,
-        max_tokens: 2000,
+        model: "dall-e-3",
+        prompt,
+        n: 1,
+        size: "1024x1792",
+        quality: "hd",
+        response_format: "url",
       }),
     });
 
@@ -75,13 +116,14 @@ ${payload.directions.join("\n")}`;
     }
 
     const data = await response.json();
-    let html = data.choices[0]?.message?.content || "";
-    
-    // Strip markdown code blocks if present
-    html = html.replace(/^```html?\n?/i, "").replace(/\n?```$/i, "").trim();
+    const imageUrl = data.data?.[0]?.url;
 
-    return NextResponse.json({ html });
+    if (!imageUrl) {
+      return jsonError("IMPORT_FAILED", "No image returned from DALL-E.", 500);
+    }
+
+    return NextResponse.json({ imageUrl });
   } catch (error) {
-    return jsonError("IMPORT_FAILED", "Unable to generate kids recipe.", 500);
+    return jsonError("IMPORT_FAILED", "Unable to generate kids recipe image.", 500);
   }
 }
