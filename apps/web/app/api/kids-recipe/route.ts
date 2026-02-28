@@ -101,13 +101,14 @@ export async function POST(request: Request) {
         prompt,
         n: 1,
         size: "1024x1792",
-        quality: "hd",
-        response_format: "b64_json",
+        quality: "standard",
+        response_format: "url",
       }),
     });
 
     if (!response.ok) {
       const error = await response.json();
+      console.error("DALL-E API error:", JSON.stringify(error));
       return NextResponse.json({
         error: {
           code: "IMPORT_FAILED",
@@ -117,13 +118,25 @@ export async function POST(request: Request) {
     }
 
     const data = await response.json();
-    const b64 = data.data?.[0]?.b64_json;
+    const imageUrl = data.data?.[0]?.url;
 
-    if (!b64) {
+    if (!imageUrl) {
+      console.error("DALL-E response missing URL:", JSON.stringify(data));
       return jsonError("IMPORT_FAILED", "No image returned from DALL-E.", 500);
     }
 
-    return NextResponse.json({ imageBase64: b64 });
+    // Download image server-side to avoid CORS issues in browser
+    const imgResponse = await fetch(imageUrl);
+    if (!imgResponse.ok) {
+      console.error("Failed to download DALL-E image:", imgResponse.status);
+      return jsonError("IMPORT_FAILED", "Failed to download generated image.", 500);
+    }
+
+    const imgBuffer = Buffer.from(await imgResponse.arrayBuffer());
+    const imageBase64 = imgBuffer.toString("base64");
+    console.log(`DALL-E image downloaded: ${(imageBase64.length / 1024).toFixed(0)} KB base64`);
+
+    return NextResponse.json({ imageBase64 });
   } catch (error) {
     return jsonError("IMPORT_FAILED", "Unable to generate kids recipe image.", 500);
   }
