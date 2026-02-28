@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { LoadingSkeleton } from "@/components/LoadingSkeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { generateRecipePdf, generateAllRecipesPdf, generateImagePdf } from "@/lib/pdf";
+import { generateRecipePdf, generateAllRecipesPdf } from "@/lib/pdf";
 import type { WeeklyPlan, WeeklyPlanRecipe, ParsedRecipe } from "@/lib/types";
 
 export default function ThisWeekPage() {
@@ -173,11 +173,22 @@ export default function ThisWeekPage() {
         throw new Error("Intet billede returneret.");
       }
 
-      generateImagePdf(
-        `data:image/png;base64,${json.imageBase64}`,
-        `${recipe.title.replace(/[^a-zA-Z0-9æøåÆØÅ ]/g, "").trim()} - Børneopskrift.pdf`
-      );
-      toast.success("Børneopskrift PDF downloadet.");
+      // Convert base64 to blob and download as PNG
+      const byteChars = atob(json.imageBase64);
+      const byteArray = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) {
+        byteArray[i] = byteChars.charCodeAt(i);
+      }
+      const blob = new Blob([byteArray], { type: "image/png" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${recipe.title.replace(/[^a-zA-Z0-9æøåÆØÅ ]/g, "").trim()} - Børneopskrift.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success("Børneopskrift downloadet!");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Kunne ikke generere børneopskrift.";
       console.error("Kids recipe error:", err);
