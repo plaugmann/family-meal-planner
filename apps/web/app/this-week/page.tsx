@@ -161,17 +161,27 @@ export default function ThisWeekPage() {
         }),
       });
 
-      if (!res.ok) throw new Error("Kunne ikke generere børneopskrift.");
-
       const json = await res.json();
-      if (!json.imageUrl) throw new Error("Intet billede returneret.");
+      if (!res.ok) {
+        const msg = json?.error?.message ?? "Kunne ikke generere børneopskrift.";
+        console.error("Kids recipe API error:", json);
+        throw new Error(msg);
+      }
+
+      if (!json.imageUrl) {
+        console.error("Kids recipe response missing imageUrl:", json);
+        throw new Error("Intet billede returneret.");
+      }
+
       await generateImagePdf(
         json.imageUrl,
         `${recipe.title.replace(/[^a-zA-Z0-9æøåÆØÅ ]/g, "").trim()} - Børneopskrift.pdf`
       );
       toast.success("Børneopskrift PDF downloadet.");
-    } catch {
-      toast.error("Kunne ikke generere børneopskrift.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Kunne ikke generere børneopskrift.";
+      console.error("Kids recipe error:", err);
+      toast.error(msg);
     } finally {
       setKidsLoading(null);
     }

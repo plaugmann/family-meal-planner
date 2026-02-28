@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { jsonError, parseJson } from "@/lib/api";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 type KidsRecipePayload = {
   title: string;
