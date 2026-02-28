@@ -168,13 +168,13 @@ export default function ThisWeekPage() {
         throw new Error(msg);
       }
 
-      if (!json.imageUrl) {
-        console.error("Kids recipe response missing imageUrl:", json);
+      if (!json.imageBase64) {
+        console.error("Kids recipe response missing imageBase64:", json);
         throw new Error("Intet billede returneret.");
       }
 
-      await generateImagePdf(
-        json.imageUrl,
+      generateImagePdf(
+        `data:image/png;base64,${json.imageBase64}`,
         `${recipe.title.replace(/[^a-zA-Z0-9æøåÆØÅ ]/g, "").trim()} - Børneopskrift.pdf`
       );
       toast.success("Børneopskrift PDF downloadet.");

@@ -102,7 +102,7 @@ export async function POST(request: Request) {
         n: 1,
         size: "1024x1792",
         quality: "hd",
-        response_format: "url",
+        response_format: "b64_json",
       }),
     });
 
@@ -117,13 +117,13 @@ export async function POST(request: Request) {
     }
 
     const data = await response.json();
-    const imageUrl = data.data?.[0]?.url;
+    const b64 = data.data?.[0]?.b64_json;
 
-    if (!imageUrl) {
+    if (!b64) {
       return jsonError("IMPORT_FAILED", "No image returned from DALL-E.", 500);
     }
 
-    return NextResponse.json({ imageUrl });
+    return NextResponse.json({ imageBase64: b64 });
   } catch (error) {
     return jsonError("IMPORT_FAILED", "Unable to generate kids recipe image.", 500);
   }

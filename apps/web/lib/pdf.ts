@@ -171,28 +171,8 @@ export function generateShoppingListPdf(
   doc.save("Indkøbsliste.pdf");
 }
 
-export async function generateImagePdf(imageUrl: string, filename: string): Promise<void> {
-  const response = await fetch(imageUrl);
-  const blob = await response.blob();
-
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const dataUrl = reader.result as string;
-        const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
-
-        const imgWidth = PAGE_WIDTH;
-        const imgHeight = PAGE_HEIGHT;
-
-        doc.addImage(dataUrl, "PNG", 0, 0, imgWidth, imgHeight);
-        doc.save(filename);
-        resolve();
-      } catch (err) {
-        reject(err);
-      }
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
+export function generateImagePdf(dataUrl: string, filename: string): void {
+  const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+  doc.addImage(dataUrl, "PNG", 0, 0, PAGE_WIDTH, PAGE_HEIGHT);
+  doc.save(filename);
 }
